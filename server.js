@@ -7,6 +7,83 @@ const rooms = new Map(), MAX = 8;
 const str = (v, n) => String(v == null ? '' : v).replace(/[\u0000-\u001f\u007f<>]/g, '').trim().slice(0, n);
 const open = c => c.ws.readyState === 1;
 
+// ===== Presença, amigos e ranking (modo de desenvolvimento) =====
+// Enquanto o Supabase não está ligado, perfis públicos, amizades e pedidos ficam num arquivo JSON (dev-store.json).
+// No plano grátis do Render o disco é apagado a cada deploy/reinício. Com o Supabase, isto passa a vir do Postgres
+// e o servidor só cuida de quem está online (e confere o token de login).
+const path = require('path');
+const STORE = process.env.DEV_STORE || path.join(__dirname, 'dev-store.json');
+let store = { profiles: {}, friends: {}, reqs: {} };
+try { store = Object.assign(store, JSON.parse(fs.readFileSync(STORE, 'utf8'))); } catch (e) {}
+let saveT = null;
+const save = () => { clearTimeout(saveT); saveT = setTimeout(() => { try { fs.writeFileSync(STORE, JSON.stringify(store)); } catch (e) {} }, 800); };
+const online = new Map(); // uid -> { ws, st, room }
+const SLOTS = ['hat', 'face', 'body', 'back', 'feet'];
+const int = v => Math.max(0, Math.min(1e9, v | 0));
+function cleanPub(p, uid) {
+  p = p && typeof p === 'object' ? p : {};
+  const eq = {}; SLOTS.forEach(k => { const v = p.eq && p.eq[k]; eq[k] = v ? str(v, 16) : null; });
+  return { uid, pid: str(p.pid, 8).replace(/\D/g, ''), nick: str(p.nick, 14) || 'Jogador', look: str(p.look, 4) || 'sol', eq, cls: str(p.cls, 4) || 'war',
+    wins: int(p.wins), losses: int(p.losses), shots: int(p.shots), hits: int(p.hits), games: int(p.games) };
+}
+function pubOf(uid) { const p = store.profiles[uid]; if (!p) return null; const o = online.get(uid); return Object.assign({}, p, { on: o ? 1 : 0, st: o ? o.st : 'off', room: o ? o.room : '' }); }
+function sendTo(uid, o) { const c = online.get(uid); if (c && c.ws.readyState === 1) c.ws.send(JSON.stringify(o)); }
+const fr = uid => store.friends[uid] || (store.friends[uid] = []);
+const rq = uid => store.reqs[uid] || (store.reqs[uid] = []); // pedidos recebidos por uid
+function tellFriends(uid) { const o = online.get(uid); fr(uid).forEach(f => sendTo(f, { t: 'fst', uid, on: o ? 1 : 0, st: o ? o.st : 'off', room: o ? o.room : '' })); }
+function nickTaken(nick, uid) { const n = nick.toLowerCase(); return Object.values(store.profiles).some(p => p.uid !== uid && p.nick.toLowerCase() === n); }
+function presence(ws) {
+  let me = null;
+  ws.on('message', d => {
+    let o; try { o = JSON.parse(d); } catch (e) { return; }
+    if (!o || typeof o !== 'object') return;
+    const reply = x => { x.rid = o.rid; if (ws.readyState === 1) ws.send(JSON.stringify(x)); };
+    if (o.t === 'hello') {
+      const uid = str(o.uid, 40).replace(/[^\w-]/g, ''); if (!uid) return;
+      const old = online.get(uid); if (old && old.ws !== ws) try { old.ws.close(); } catch (e) {}
+      me = uid; const p = cleanPub(o.pub, uid); const taken = nickTaken(p.nick, uid);
+      store.profiles[uid] = p; online.set(uid, { ws, st: 'menu', room: '' }); save(); tellFriends(uid);
+      return reply({ t: 'hello', ok: 1, taken });
+    }
+    if (o.t === 'nick') return reply({ t: 'nick', ok: !nickTaken(str(o.nick, 14), me) });
+    if (!me) return;
+    switch (o.t) {
+      case 'pub': store.profiles[me] = cleanPub(o.pub, me); save(); return;
+      case 'status': { const c = online.get(me); if (!c) return; c.st = ['menu', 'lobby', 'game'].includes(o.s) ? o.s : 'menu'; c.room = str(o.room, 12); tellFriends(me); return; }
+      case 'nick': return reply({ t: 'nick', ok: !nickTaken(str(o.nick, 14), me) });
+      case 'find': { const q = str(o.q, 40).replace(/^#/, ''); let uid = store.profiles[q] ? q : null;
+        if (!uid) { const p = Object.values(store.profiles).find(x => x.pid === q || x.nick.toLowerCase() === q.toLowerCase()); uid = p && p.uid; }
+        return reply({ t: 'find', p: uid ? pubOf(uid) : null }); }
+      case 'online': { const map = {}; (Array.isArray(o.uids) ? o.uids : []).slice(0, 200).forEach(u => { const c = online.get(String(u)); map[u] = { on: c ? 1 : 0, st: c ? c.st : 'off', room: c ? c.room : '' }; }); return reply({ t: 'online', map }); }
+      case 'friends': {
+        const out = Object.keys(store.reqs).filter(k => store.reqs[k].includes(me));
+        return reply({ t: 'friends', list: fr(me).map(pubOf).filter(Boolean), inc: rq(me).map(pubOf).filter(Boolean), out: out.map(pubOf).filter(Boolean) });
+      }
+      case 'freq': {
+        const to = str(o.to, 40); if (to === me || !store.profiles[to]) return reply({ t: 'freq', e: 'Jogador não encontrado.' });
+        if (fr(me).includes(to)) return reply({ t: 'freq', e: 'Vocês já são amigos.' });
+        if (rq(me).includes(to)) { // a outra pessoa já tinha pedido: viram amigos na hora
+          store.reqs[me] = rq(me).filter(x => x !== to); fr(me).push(to); fr(to).push(me); save(); sendTo(to, { t: 'fupd' }); return reply({ t: 'freq', ok: 1 });
+        }
+        if (!rq(to).includes(me)) rq(to).push(me); save(); sendTo(to, { t: 'freqIn', p: pubOf(me) }); return reply({ t: 'freq', ok: 1 });
+      }
+      case 'fresp': {
+        const from = str(o.from, 40); if (!rq(me).includes(from)) return reply({ t: 'fresp', e: 'Pedido não encontrado.' });
+        store.reqs[me] = rq(me).filter(x => x !== from);
+        if (o.ok && !fr(me).includes(from)) { fr(me).push(from); fr(from).push(me); }
+        save(); sendTo(from, { t: 'fupd' }); return reply({ t: 'fresp', ok: 1 });
+      }
+      case 'unfriend': { const u = str(o.uid, 40); store.friends[me] = fr(me).filter(x => x !== u); store.friends[u] = fr(u).filter(x => x !== me); save(); sendTo(u, { t: 'fupd' }); return reply({ t: 'unfriend', ok: 1 }); }
+      case 'top': { const list = Object.values(store.profiles).filter(p => p.games > 0)
+          .sort((a, b) => (b.wins - a.wins) || (b.wins / (b.games || 1) - a.wins / (a.games || 1))).slice(0, 50).map(p => pubOf(p.uid));
+        return reply({ t: 'top', list }); }
+      case 'invite': { const to = str(o.to, 40); if (fr(me).includes(to)) sendTo(to, { t: 'invite', from: pubOf(me), code: str(o.code, 12) }); return; }
+      case 'ping': { const to = str(o.to, 40); sendTo(to, { t: 'fupd' }); return; }
+    }
+  });
+  ws.on('close', () => { if (me && online.get(me) && online.get(me).ws === ws) { online.delete(me); tellFriends(me); } });
+}
+
 function roomList() {
   const out = [];
   rooms.forEach((r, code) => {
@@ -32,6 +109,7 @@ const wss = new WebSocketServer({ server: srv, path: '/ws', maxPayload: 64 * 102
 
 wss.on('connection', (ws, req) => {
   const u = new URL(req.url, 'http://x');
+  if (u.searchParams.get('presence') === '1') return presence(ws);
   const room = str(u.searchParams.get('room'), 12).toUpperCase().replace(/[^A-Z0-9]/g, '') || 'X';
   const cid = str(u.searchParams.get('cid') || Math.random().toString(36).slice(2), 24);
   const create = u.searchParams.get('create') === '1', pw = str(u.searchParams.get('pw'), 20);
