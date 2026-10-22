@@ -15,42 +15,49 @@ Para quem vai mexer no código (pessoa ou agente de IA): leia o **[AGENTS.md](AG
 | Atirar | segure **Espaço** para carregar a força e solte | segure **FOGO** e solte |
 | Power-ups | teclas **1 a 7** ou clique no botão | toque no botão |
 | Chat | **Enter** | — |
+| Zoom da câmera | roda do mouse; arrastar move; duplo clique volta | pinça com 2 dedos; arrastar move; toque duplo aproxima/volta; toque no minimapa |
 | Música / sons | **M** / **N** | ⚙ Configurações |
 
 - Turnos de **20 segundos**. Se o tempo acabar enquanto você carrega a força, o tiro sai sozinho.
 - Na vez do outro jogador, você não consegue fazer nada.
 - O painel de cada jogador mostra a **força, o ângulo e o vento do último tiro**, para ajudar a corrigir a mira.
 - O que você digita no chat aparece num **balão em cima do personagem**.
-- Os botões na tela para celular ficam em **⚙ Configurações**, no canto do menu e na lateral da tela durante a partida.
-- Atrás do login, do menu, das salas, da loja, do armazém, dos amigos e do ranking roda uma **batalha de demonstração** (só visual, não conta nada) que troca de mapa e horário a cada 8 tiros, com a logo do BombWar por cima.
+- Os botões na tela para celular ficam em **⚙ Configurações**, no canto do menu e na lateral da tela durante a partida. O FOGO fica no canto de baixo à direita, para não tapar o mapa.
+- **Câmera:** a partida começa mostrando o mapa todo. Com zoom, a câmera acompanha o tiro e quem está na vez até você arrastar. O **minimapa** (canto de cima, à direita) mostra o mapa inteiro e o pedaço que está na tela; toque nele para pular para um ponto. Aparece sempre no celular e, no computador, quando há zoom.
+- **Tela cheia:** em ⚙ Configurações. No celular, tocar na Arena já tenta entrar em tela cheia e deitar a tela. No iPhone o navegador não deixa: use **Compartilhar → Adicionar à Tela de Início** e abra pelo ícone do BombWar (o jogo abre em tela cheia).
+- **Login:** atrás da tela de entrar roda uma batalha de demonstração (só visual). Depois do login, o menu é uma **cidade** no estilo DDTank.
+
+## Menu (cidade)
+
+Cada prédio é um botão, com luz quando o mouse passa por cima: **Inventário** (depósito), **Loja**, **Arena** (castelo no centro, com o botão **Jogue agora**), **Hall da Fama** (ranking) e **Amigos** (taverna). Postes e janelas acesas, vaga-lumes, fumaça e fogos saindo dos canhões da Arena dão vida à cena. O **cartão do jogador** fica no canto de cima, à esquerda, no menu, na lista de salas e dentro da sala; clicar nele abre o **Inventário** (dá para trocar de roupa na sala, nunca durante a partida). A arma é escolhida dentro da sala.
 
 ## Modos
 
-- **Jogar Offline:** sala local contra bots. Escolha 1v1 ou 2v2, a dificuldade de cada bot (Fácil, Normal ou Difícil), o mapa e o horário.
-- **Online Servidor:** lista de salas abertas, atualizada a cada 3 segundos. Você pode criar uma sala (nome e senha opcional) ou entrar com o código.
+- **Arena** (antigo "Online Servidor"): lista de salas abertas, atualizada a cada 3 segundos. Você pode criar uma sala (nome e senha opcional) ou entrar com o código. Para jogar contra bots, crie uma sala e use **+ Bot**.
+- **Jogar Offline:** desativado no menu (o código continua no jogo, função `offLobby`).
   - Na sala, todos precisam clicar em **Estou pronto** antes do líder 👑 iniciar.
   - O líder pode trocar o formato, o mapa, o horário, o nome e a senha da sala, e completar vagas com bots.
   - Se o líder sair, a liderança passa para o jogador mais antigo da sala, mesmo no meio da partida.
   - Quem entra com a partida em andamento fica assistindo e joga na próxima.
 - **P2P (PeerJS):** o código continua no projeto, mas o botão foi retirado do menu.
 
-## Contas, armazém, loja e amigos
+## Contas, inventário, loja e amigos
 
 - **Login:** Google, e-mail ou convidado. Na criação da conta você escolhe um **apelido único** (3 a 14 letras ou números) e o personagem básico, sem skins. Cada conta recebe um **ID público de 8 números**.
-- **Saldo inicial (versão de testes):** 1.000 de ouro e **10.000 gemas**. Ouro também se ganha jogando: +60 por vitória e +20 por derrota.
-- **Estatísticas:** vitórias, derrotas, % de vitórias, precisão e partidas.
+- **Saldo inicial (versão de testes):** 1.000 de ouro e **10.000 gemas**. Ouro também se ganha jogando: +60 por vitória e +20 por derrota; partida com bots dá +20 de participação.
+- **Estatísticas:** vitórias, derrotas, % de vitórias, precisão e partidas. **Só contam partidas entre jogadores**: se tiver qualquer bot na partida, ela não entra nas estatísticas nem no ranking.
 - **Loja:** 50 skins em 5 abas (Chapéu, Rosto, Roupa, Costas e Calçado), com 4 raridades (Comum e Raro custam ouro; Épico e Lendário custam gemas). Dá para buscar pelo nome, filtrar por raridade, ordenar por preço, esconder o que já tem e **provar** antes de comprar.
-- **Armazém:** grade com os seus itens, no estilo do DDTank. **Arraste** um item até o espaço do personagem para equipar (ou dê dois cliques), e arraste de volta para a grade para tirar. Funciona com o dedo no celular.
+- **Inventário:** grade com os seus itens, no estilo do DDTank. **Arraste** um item até o espaço do personagem para equipar (ou dê dois cliques), e arraste de volta para a grade para tirar. Funciona com o dedo no celular.
 - **Amigos:** busque pelo ID ou apelido, ou clique no nome de alguém na sala para ver o perfil (skins e estatísticas) e mandar pedido. A lista mostra quem está **online**, **na sala** ou **em partida**. Na sala, o botão **Convidar amigos** manda um convite com o código.
-- **Ranking:** os 50 jogadores com mais vitórias.
+- **Ranking (Hall da Fama):** os 50 jogadores com mais vitórias em partidas sem bots.
 - **Convidados** jogam normalmente, mas não compram nem adicionam amigos. Ao criar conta, o progresso do convidado é transferido.
 
 ### Banco de dados (Supabase)
 
-O jogo está ligado ao projeto Supabase `zfqzzzidzyfbmwqlxpjp`. Login com Google, e-mail (link mágico) ou convidado; conta, loja, armazém, amigos e ranking ficam no banco e valem em qualquer aparelho. O resultado de cada partida (vitórias, derrotas, precisão e ouro) é gravado pelo servidor do jogo.
+O jogo está ligado ao projeto Supabase `zfqzzzidzyfbmwqlxpjp`. Login com Google, e-mail (link mágico) ou convidado; conta, loja, inventário, amigos e ranking ficam no banco e valem em qualquer aparelho. O resultado de cada partida (vitórias, derrotas, precisão e ouro) é gravado pelo servidor do jogo.
 
 **Configuração (já feita / para refazer num projeto novo):**
-1. **SQL Editor:** cole `db/schema.sql` inteiro e clique em **Run**.
+1. **SQL Editor:** cole `db/schema.sql` inteiro e clique em **Run**. Sempre que o `schema.sql` mudar, rode de novo (ele pode ser rodado várias vezes sem apagar dados).
 2. **Authentication → Sign In / Providers:** ligue **Email**, **Anonymous sign-ins** (convidados) e, se quiser, **Google** (Client ID e Secret do Google Cloud).
 3. **Authentication → URL Configuration:** **Site URL** = endereço do jogo (ex.: `https://bombwar.onrender.com`) e o mesmo em **Redirect URLs**.
 4. **index.html:** `SUPA` = Project URL (`https://<id>.supabase.co`, sem `/rest/v1/`) + chave **publicável** (`sb_publishable_...`). Ela pode ficar no código.
@@ -69,7 +76,7 @@ Todo mundo joga com o **mesmo personagem padrão** (camiseta azul, short preto e
 | Canhão Pesado | tiro forte e confiável, área de dano grande e cratera pequena |
 | Rifle de Precisão | muito dano, tiro rápido e trajetória plana |
 | Cajado Arcano | queima o alvo por 2 turnos |
-| Morteiro | duas bolas que se cruzam no ar e se juntam na queda; cada uma tem 60% do dano do Canhão (as duas juntas, 120%). Atire para o alto para acertar as duas |
+| Morteiro | duas bolas que se cruzam na saída, se abrem bastante (até 140 px) e só se juntam depois de uns 2,5 s de voo; cada uma tem 60% do dano do Canhão (as duas juntas, 120%). Só tiros bem altos acertam as duas |
 | Bola Quicante | quica uma vez no chão (mais forte quanto mais alto vier) e explode no segundo toque; acerto direto explode na hora |
 
 
@@ -123,7 +130,7 @@ Onze biomas, cada um com terreno de formato próprio:
    - **Build Command:** `npm install`
    - **Start Command:** `node server.js`
    - **Instance:** Free
-3. O link `https://<nome>.onrender.com` abre o jogo, e o modo **Online Servidor** já funciona por ele.
+3. O link `https://<nome>.onrender.com` abre o jogo, e a **Arena** já funciona por ele.
 
 No plano gratuito, o servidor dorme depois de 15 minutos sem ninguém jogando e leva cerca de 1 minuto para acordar. Quando ele dorme ou reinicia, as salas abertas somem.
 
@@ -147,6 +154,7 @@ Se preferir o Fly.io (pago, servidor em São Paulo), o `Dockerfile` e o `fly.tom
 | Arquivo | O que é |
 |---|---|
 | `index.html` | o jogo inteiro (cliente) |
+| `manifest.webmanifest`, `icon-192.png`, `icon-512.png` | ícone e configuração para instalar o jogo na tela inicial do celular (abre em tela cheia, deitado) |
 | `server.js` | servidor Node: entrega o jogo, lista as salas (`/rooms`), repassa as mensagens (WebSocket `/ws`) e cuida da presença online, amigos e ranking (`/ws?presence=1`) |
 | `package.json` | dependência `ws` |
 | `db/schema.sql` | banco de dados do Supabase: tabelas, travas (RLS), funções e catálogo de skins |
@@ -175,3 +183,4 @@ Do mais antigo para o mais recente:
 14. Fim da escolha de personagem: todas as contas usam o personagem padrão (camiseta azul e short preto) e se personalizam com skins.
 15. O jogo passou a se chamar **BombWar**: logo nova e batalha de demonstração animada atrás do login e dos menus.
 16. Supabase ligado: contas, loja, amigos e ranking no banco; o servidor confere o login e grava o resultado das partidas.
+17. Menu em forma de cidade (Inventário, Loja, Arena, Hall da Fama, Amigos) com luzes e fogos; cartão do jogador na sala com acesso ao inventário; Jogar Offline desativado (bots na Arena); ranking só com partidas sem bots; Morteiro exige tiro mais alto; botões de toque menores; tela cheia; zoom com pinça/roda, câmera que acompanha o tiro e minimapa.

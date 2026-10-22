@@ -1,5 +1,5 @@
 -- =====================================================================
--- Vale dos Canhões — banco de dados no Supabase (Postgres)
+-- BombWar — banco de dados no Supabase (Postgres)
 -- Como usar: no painel do Supabase, abra "SQL Editor", cole este arquivo inteiro e clique em "Run".
 -- Depois: Authentication > Providers > ative Google e E-mail; Authentication > Settings > ative "Anonymous sign-ins" (convidados).
 -- Regra de ouro: o jogo do jogador só altera apelido/visual/arma/equipamento. Ouro, gemas, itens e estatísticas
@@ -193,16 +193,23 @@ create or replace function public.friend_remove(p_uid uuid) returns void languag
   delete from friendships where (a = auth.uid() and b = p_uid) or (a = p_uid and b = auth.uid());
 $$;
 
--- resultado de partida: só o servidor do jogo (chave service_role) pode chamar
-create or replace function public.record_result(p_user uuid, p_win boolean, p_shots int, p_hits int, p_gold int) returns void
+-- resultado de partida: só o servidor do jogo (chave secreta / service_role) pode chamar.
+-- p_ranked = partida só com jogadores (sem bots): conta vitória, derrota, precisão e ranking.
+-- Partida com bots (p_ranked = false): só dá o ouro, sem mexer nas estatísticas.
+drop function if exists public.record_result(uuid, boolean, int, int, int);
+create or replace function public.record_result(p_user uuid, p_win boolean, p_shots int, p_hits int, p_gold int, p_ranked boolean default true) returns void
 language plpgsql security definer set search_path = public as $$
 begin
-  update profiles set games = games + 1, wins = wins + (case when p_win then 1 else 0 end), losses = losses + (case when p_win then 0 else 1 end),
-         shots = shots + p_shots, hits = hits + p_hits, gold = gold + p_gold where id = p_user;
-  insert into wallet_log(user_id, gold, reason) values (p_user, p_gold, case when p_win then 'vitória' else 'derrota' end);
+  if p_ranked then
+    update profiles set games = games + 1, wins = wins + (case when p_win then 1 else 0 end), losses = losses + (case when p_win then 0 else 1 end),
+           shots = shots + p_shots, hits = hits + p_hits, gold = gold + p_gold where id = p_user;
+  else
+    update profiles set gold = gold + p_gold where id = p_user;
+  end if;
+  insert into wallet_log(user_id, gold, reason) values (p_user, p_gold, case when not p_ranked then 'partida com bots' when p_win then 'vitória' else 'derrota' end);
 end $$;
-revoke execute on function public.record_result(uuid, boolean, int, int, int) from public, anon, authenticated;
-grant execute on function public.record_result(uuid, boolean, int, int, int) to service_role;
+revoke execute on function public.record_result(uuid, boolean, int, int, int, boolean) from public, anon, authenticated;
+grant execute on function public.record_result(uuid, boolean, int, int, int, boolean) to service_role;
 
 grant execute on function public.nick_available(text), public.buy_item(text), public.my_friends(),
   public.friend_request(uuid), public.friend_respond(uuid, boolean), public.friend_remove(uuid) to authenticated;

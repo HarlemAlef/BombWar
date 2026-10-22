@@ -88,13 +88,18 @@ function presence(ws) {
     if (!me) return;
     switch (o.t) {
       case 'pub': store.profiles[me] = cleanPub(o.pub, me); if (!sbOn) save(); return;
-      case 'result': { // fim de partida: só com Supabase; no máximo 1 resultado a cada 30 s por jogador
+      case 'result': { // fim de partida: só com Supabase
         if (!sbOn) return reply({ t: 'result', e: 'off' });
-        const now = Date.now(); if (now - (lastRes.get(me) || 0) < 30e3) return reply({ t: 'result', e: 'cedo' });
+        // ranqueada = a última partida iniciada na sala do jogador era só de jogadores (sem bots), com ele dentro; 1 resultado por partida
+        const c = online.get(me), rm = c && c.room ? rooms.get(c.room.toUpperCase().replace(/[^A-Z0-9]/g, '')) : null, gm = rm && rm.go;
+        const inGo = !!(gm && gm.uids.includes(me));
+        if (inGo) { if (gm.done.has(me)) return reply({ t: 'result', e: 'repetido' }); gm.done.add(me); }
+        const now = Date.now(); if (!inGo && now - (lastRes.get(me) || 0) < 30e3) return reply({ t: 'result', e: 'cedo' });
         lastRes.set(me, now);
-        const shots = Math.max(0, Math.min(80, o.shots | 0)), hits = Math.max(0, Math.min(shots, o.hits | 0)), win = !!o.win, gold = win ? 60 : 20;
-        sbFetch('/rest/v1/rpc/record_result', { method: 'POST', body: JSON.stringify({ p_user: me, p_win: win, p_shots: shots, p_hits: hits, p_gold: gold }) })
-          .then(() => reply({ t: 'result', ok: 1, gold }))
+        const ranked = inGo && gm.bots === 0 && gm.uids.length >= 2;
+        const shots = Math.max(0, Math.min(80, o.shots | 0)), hits = Math.max(0, Math.min(shots, o.hits | 0)), win = !!o.win, gold = ranked ? (win ? 60 : 20) : 20;
+        sbFetch('/rest/v1/rpc/record_result', { method: 'POST', body: JSON.stringify({ p_user: me, p_win: win, p_shots: shots, p_hits: hits, p_gold: gold, p_ranked: ranked }) })
+          .then(() => reply({ t: 'result', ok: 1, gold, ranked: ranked ? 1 : 0 }))
           .catch(e => { console.log('record_result', e.message); reply({ t: 'result', e: 'falhou' }); });
         return;
       }
@@ -145,8 +150,11 @@ function roomList() {
   return out.slice(0, 60);
 }
 
+const STATIC = { '/manifest.webmanifest': ['manifest.webmanifest', 'application/manifest+json'], '/icon-192.png': ['icon-192.png', 'image/png'], '/icon-512.png': ['icon-512.png', 'image/png'] };
 const srv = http.createServer((req, res) => {
   const u = new URL(req.url, 'http://x');
+  const sf = STATIC[u.pathname]; // ícones e manifesto (instalar o jogo na tela inicial do celular)
+  if (sf) { try { const b = fs.readFileSync(path.join(__dirname, sf[0])); res.writeHead(200, { 'content-type': sf[1], 'cache-control': 'public, max-age=86400' }); return res.end(b); } catch (e) {} }
   if (u.pathname === '/rooms') {
     res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store', 'access-control-allow-origin': '*' });
     return res.end(JSON.stringify(roomList()));
@@ -194,6 +202,10 @@ wss.on('connection', (ws, req) => {
       else r.meta = { name: str(o.name, 30) || 'Sala', lead: str(o.lead, 14), fmt: o.fmt === '2v2' ? '2v2' : '1v1',
         n: Math.max(0, Math.min(4, o.n | 0)), max: o.max === 4 ? 4 : 2, ig: o.ig ? 1 : 0 };
       return;
+    }
+    if (o.t === 'go' && cid === r.host && Array.isArray(o.players)) { // guarda quem está na partida (para o ranking só contar partidas sem bots)
+      const ps = o.players.slice(0, 8);
+      r.go = { uids: ps.filter(p => p && !p.bot && p.uid).map(p => str(p.uid, 40)), bots: ps.filter(p => p && p.bot).length, done: new Set() };
     }
     o.from = cid; // o servidor carimba quem enviou
     cast(o);
