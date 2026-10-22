@@ -1,4 +1,4 @@
-# Vale dos Canhões
+# BombWar
 
 Jogo de artilharia 2D por turnos no estilo DDTank, feito em **um único arquivo** (`index.html`, HTML + JavaScript com canvas) e com um servidor Node pequeno (`server.js`) para jogar online.
 
@@ -22,6 +22,7 @@ Para quem vai mexer no código (pessoa ou agente de IA): leia o **[AGENTS.md](AG
 - O painel de cada jogador mostra a **força, o ângulo e o vento do último tiro**, para ajudar a corrigir a mira.
 - O que você digita no chat aparece num **balão em cima do personagem**.
 - Os botões na tela para celular ficam em **⚙ Configurações**, no canto do menu e na lateral da tela durante a partida.
+- Atrás do login, do menu, das salas, da loja, do armazém, dos amigos e do ranking roda uma **batalha de demonstração** (só visual, não conta nada) que troca de mapa e horário a cada 8 tiros, com a logo do BombWar por cima.
 
 ## Modos
 
@@ -54,7 +55,7 @@ Enquanto o Supabase não está ligado, o jogo roda em **modo de desenvolvimento*
 1. Crie um projeto grátis em [supabase.com](https://supabase.com).
 2. No painel, abra **SQL Editor**, cole o arquivo `db/schema.sql` inteiro e clique em **Run**. Isso cria as tabelas, as travas de segurança, as funções de compra e de amizade e os 50 itens.
 3. Em **Authentication → Providers**, ative **E-mail** e **Google** (o Google pede um "Client ID" criado no Google Cloud; o painel do Supabase explica). Em **Authentication → Settings**, ative **Anonymous sign-ins** (convidados).
-4. Em **Authentication → URL Configuration**, coloque o endereço do jogo (ex.: `https://vale-dos-canhoes.onrender.com`).
+4. Em **Authentication → URL Configuration**, coloque o endereço do jogo (ex.: `https://bombwar.onrender.com`).
 5. Em **Project Settings → API**, copie a **Project URL** e a chave **anon public** e me mande. Eu coloco no `SUPA` do `index.html`, ligo a gravação das partidas no servidor e testamos juntos.
 
 A chave **service_role** é secreta: ela vai só nas variáveis de ambiente do Render, nunca no código do jogo.
@@ -128,6 +129,17 @@ No plano gratuito, o servidor dorme depois de 15 minutos sem ninguém jogando e 
 
 Para atualizar, basta enviar o novo `index.html` (e o `server.js`, se ele mudou) para o GitHub. O Render publica sozinho.
 
+### Trocar o endereço (URL)
+
+O Render **não deixa mudar** o `https://<nome>.onrender.com` de um serviço que já existe. Para ter `bombwar.onrender.com`:
+1. (Opcional) No GitHub, renomeie o repositório: **Settings → Repository name → `bombwar`**.
+2. No Render, crie um **novo Web Service** desse repositório com o nome **`bombwar`** e as mesmas opções acima. Se o nome já estiver em uso por outra pessoa, o Render coloca um sufixo (ex.: `bombwar-x1y2`).
+3. Abra o link novo e teste. Depois, apague o serviço antigo em **Settings → Delete Web Service**.
+4. No Supabase, troque o endereço em **Authentication → URL Configuration** (Site URL e Redirect URLs) e, se usar o Google, nada muda no Google Cloud (ele aponta para o Supabase).
+5. Mande o link novo para os amigos. Contas do **modo de desenvolvimento** ficam salvas no navegador por endereço, então no link novo elas começam do zero (com o Supabase isso deixa de acontecer).
+
+Para um endereço próprio (ex.: `bombwar.com.br`), compre o domínio e adicione em **Settings → Custom Domains** do serviço no Render.
+
 Se preferir o Fly.io (pago, servidor em São Paulo), o `Dockerfile` e o `fly.toml` já estão prontos: `fly deploy`.
 
 ## Arquivos
@@ -161,3 +173,4 @@ Do mais antigo para o mais recente:
 12. Cratera do Canhão Pesado reduzida pela metade; Morteiro refeito com duas bolas que se cruzam e se juntam na queda.
 13. Contas (login com Google, e-mail ou convidado; apelido único e ID), 50 skins em 5 tipos, Armazém com arrastar e soltar, Loja por abas, amigos com status online, perfis, ranking e convite para sala. Banco do Supabase pronto em `db/schema.sql`.
 14. Fim da escolha de personagem: todas as contas usam o personagem padrão (camiseta azul e short preto) e se personalizam com skins.
+15. O jogo passou a se chamar **BombWar**: logo nova e batalha de demonstração animada atrás do login e dos menus.

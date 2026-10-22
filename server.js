@@ -1,4 +1,4 @@
-// Servidor do Vale dos Canhões: entrega o index.html, lista as salas abertas e repassa mensagens entre os jogadores.
+// Servidor do BombWar: entrega o index.html, lista as salas abertas e repassa mensagens entre os jogadores.
 // Cada sala tem um líder; se o líder sair, a liderança passa para o jogador mais antigo da sala.
 // Até 8 conexões por sala (4 jogadores + espectadores). Salas podem ter senha.
 const http = require('http'), fs = require('fs'), { WebSocketServer } = require('ws');

@@ -1,4 +1,4 @@
-# AGENTS.md — guia técnico do Vale dos Canhões
+# AGENTS.md — guia técnico do BombWar (antigo "Vale dos Canhões")
 
 Leia isto **antes** de abrir o código. O objetivo é gastar poucos tokens: `index.html` tem cerca de 1100 linhas muito densas, então **nunca leia o arquivo inteiro**. Ache a seção pelo marcador e leia só o trecho necessário.
 
@@ -31,6 +31,7 @@ grep -n "^function nomeDaFuncao" index.html
 | `loop de lógica` | `pumpQ` (fila de turnos online), `update()` a 60 Hz fixos |
 | `render` | `drawChar(g,arma,x,y,f,ang,cor,t,burn,look)`, `drawP`, `lpOff`/`drawProj` (giro de 360° só visual), `sky` (ambiente animado por bioma), `water` (água, lava, abismo, nuvens, vazio), `column`, `wxUpdate` (clima, ambiente, meteoros), `weather` (chuva, raios, meteoros), `fogLayer` (névoa do cemitério), `vignette`, `panel`, `dial`, `bottom`, `hud`, `draw`. Também `step`/`loop`: `requestAnimationFrame` com `setInterval` de reserva, para o tempo correr com a aba em segundo plano |
 | `sala (lobby)` | objeto `L`, `lobbyNew`, `offLobby`, `pushLobby`, `sendMeta`, `newHost` (passagem de liderança), `hostApply`, `setFmt`, `addBot`, `botDf`, `setOpt`, `hostStart`, `startOnline`, `renderLobby` |
+| `fundo animado` (último `<script>`) | `BG`: batalha de demonstração só visual atrás das telas `menu, auth, browse, lobby, inv, shop, fr, rank` (canvas `#bg`, z-index 4; as telas têm classe `see`, e `see dim` escurece mais). Motor próprio e pequeno (terreno em `hm`, tiros, crateras, partículas); **não usa `G`, nem som, nem estatística**. Reaproveita `drawChar`, `ITEMS`, `BIO`, `TOD`, `TEAM`. Troca de cena (`SC`) a cada 8 tiros; para de desenhar quando nenhuma dessas telas está visível. `BG.next()` pula de cena (teste), `BG.burst()` é a explosão quando a logo aparece. A logo é HTML/CSS (`.logo`, `.bomb`), não imagem |
 | `rede` | `send`, `onMsg` (todas as mensagens do jogo), `lost`; `p2pHost`/`p2pJoin` (P2P oculto) |
 | `servidor: lista de salas e conexão` | `srvAddr`, `showBrowse`, `loadRooms`/`renderRooms` (`GET /rooms`), `wsJoin` |
 | `contas, armazém, loja, amigos e ranking` | `SUPA` (chaves; vazio = modo local), `START`/`REWARD`, `ACC` (conta atual), `PS` (conexão de presença), `LocalDB` e `SupaDB` (mesma interface; `DB` escolhe), `drawIcon`/`drawFig`/`drawAv`, login (`showAuth`, `doSignIn`, `createAcc`, `onLogin`), `renderInv`/`equip`/`dragSrc`, `renderShop`/`buyFlow`, `openProfile`, `social` (amigos), `renderRank` |
@@ -102,7 +103,7 @@ L = {code, mode, name, dn, lock, off, fmt, map, tod, host,
 
 | Chave | Conteúdo |
 |---|---|
-| `vdc-name` | nome do jogador |
+| `vdc-name` | nome do jogador (o prefixo `vdc-` ficou do nome antigo; não troque, senão quem já joga perde as configurações) |
 | `vdc-audio` | música e sons ligados ou desligados |
 | `vdc-cfg` | `{touch}` (botões na tela) |
 | `vdc-wpn` | última arma escolhida (`vdc-look` não é mais usado) |

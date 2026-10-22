@@ -1,5 +1,5 @@
 -- =====================================================================
--- Vale dos Canhões — banco de dados no Supabase (Postgres)
+-- BombWar — banco de dados no Supabase (Postgres)
 -- Como usar: no painel do Supabase, abra "SQL Editor", cole este arquivo inteiro e clique em "Run".
 -- Depois: Authentication > Providers > ative Google e E-mail; Authentication > Settings > ative "Anonymous sign-ins" (convidados).
 -- Regra de ouro: o jogo do jogador só altera apelido/visual/arma/equipamento. Ouro, gemas, itens e estatísticas
