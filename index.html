@@ -1614,9 +1614,11 @@ function leave(){const n=net;net=null;if(n&&n.close)try{n.close()}catch(e){}if(p
  G=null;L=null;isHost=false;inGame=false;hostCid='';touchUI();AU.chStop();AU.music('menu');$('lobby').hidden=true;$('over').hidden=true;$('cfg').hidden=true}
 
 /* =================== contas, armazém, loja, amigos e ranking =================== */
-// Para ligar o Supabase: preencha SUPA.url e SUPA.key (chave "anon public" do projeto) e rode db/schema.sql no SQL Editor.
+// Supabase ligado: url do projeto + chave publicável (pode ficar no código; o banco é protegido pelo RLS do db/schema.sql).
+// A chave secreta NUNCA vai aqui: ela fica só nas variáveis de ambiente do servidor (SUPABASE_SECRET no Render).
+// Para voltar ao modo de desenvolvimento (contas no aparelho), deixe url e key vazios.
 // Sem isso, o jogo usa o modo de desenvolvimento: a conta fica salva neste aparelho e amigos/ranking passam pelo servidor do jogo.
-const SUPA={url:'',key:''};
+const SUPA={url:'https://zfqzzzidzyfbmwqlxpjp.supabase.co',key:'sb_publishable_KKkI_UJYA0ZXArTS9Wh0vA_TnN_zuFq'};
 const START={gold:1000,gems:10000},REWARD={win:60,loss:20}; // gemas iniciais desta versão de testes
 let ACC=null,curStatus={s:'menu',room:''};
 const uuid=()=>crypto.randomUUID?crypto.randomUUID():'u'+Date.now().toString(36)+Math.random().toString(36).slice(2,12);
@@ -1633,12 +1635,13 @@ function modal(title,msg,btns){$('mdT').textContent=title;$('mdM').textContent=m
 
 // ---------- conexão de presença com o servidor (online, em partida, pedidos de amizade, ranking) ----------
 const PS={ws:null,ok:false,rid:0,wait:new Map(),addr:'',retry:0,
- start(force){let a='';if(location.protocol==='file:'){try{a=localStorage.getItem('vdc-srv')||''}catch(e){}}else a=location.host;if(!a||(!force&&(!ACC||ACC.guest)))return;this.addr=a;if(this.ws){if(this.ok)this.hello()}else this.connect()},
- hello(){if(!ACC||ACC.guest)return;this.req({t:'hello',uid:ACC.uid,pub:pubOf()}).then(r=>{if(r&&r.taken)toast('Seu apelido já é usado por outra conta neste servidor.')});this.fire({t:'status',s:curStatus.s,room:curStatus.room});social.refresh()},
+ start(force){let a='';if(location.protocol==='file:'){try{a=localStorage.getItem('vdc-srv')||''}catch(e){}}else a=location.host;if(!a||(!force&&(!ACC||ACC.guest&&DB.mode==='local')))return;this.addr=a;if(this.ws){if(this.ok)this.hello()}else this.connect()},
+ async hello(){if(!ACC||ACC.guest&&DB.mode==='local')return;const token=DB.token?await DB.token():'';const r=await this.req({t:'hello',uid:ACC.uid,token,pub:pubOf()});
+  if(r&&r.e)toast(r.e);else if(r&&r.taken&&DB.mode==='local')toast('Seu apelido já é usado por outra conta neste servidor.');this.fire({t:'status',s:curStatus.s,room:curStatus.room});if(!ACC.guest)social.refresh()},
  connect(){if(this.ws)return;let ws;try{ws=new WebSocket((secure(this.addr)?'wss://':'ws://')+this.addr+'/ws?presence=1')}catch(e){return}this.ws=ws;
   ws.onopen=()=>{this.ok=true;this.retry=0;this.hello()};
   ws.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch(x){return}if(m.rid&&this.wait.has(m.rid)){this.wait.get(m.rid)(m);this.wait.delete(m.rid);return}social.event(m)};
-  ws.onclose=()=>{if(this.ws!==ws)return;this.ws=null;this.ok=false;this.wait.forEach(f=>f(null));this.wait.clear();if(ACC&&!ACC.guest||!$('auth').hidden)setTimeout(()=>this.connect(),Math.min(30000,2000*(++this.retry)))}},
+  ws.onclose=()=>{if(this.ws!==ws)return;this.ws=null;this.ok=false;this.wait.forEach(f=>f(null));this.wait.clear();if(ACC&&(!ACC.guest||DB.mode!=='local')||!$('auth').hidden)setTimeout(()=>this.connect(),Math.min(30000,2000*(++this.retry)))}},
  req(o){return new Promise(res=>{if(!this.ws||this.ws.readyState!==1)return res(null);o.rid=++this.rid;this.wait.set(o.rid,res);this.ws.send(JSON.stringify(o));
   setTimeout(()=>{if(this.wait.has(o.rid)){this.wait.delete(o.rid);res(null)}},6000)})},
  fire(o){if(this.ws&&this.ws.readyState===1)this.ws.send(JSON.stringify(o))},
@@ -1676,12 +1679,14 @@ const LocalDB={mode:'local',
 
 // ---------- banco de dados: Supabase (Postgres + Auth). Pronto para ligar; será testado quando houver as chaves ----------
 const SupaDB={mode:'supabase',sb:null,
- async init(){if(this.sb)return;await new Promise((ok,no)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js';s.onload=ok;s.onerror=no;document.head.appendChild(s)});
-  this.sb=window.supabase.createClient(SUPA.url,SUPA.key)},
+ async init(){if(this.sb)return;await new Promise((ok,no)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.4/dist/umd/supabase.js';s.onload=ok;s.onerror=no;document.head.appendChild(s)});
+  this.sb=window.supabase.createClient(SUPA.url,SUPA.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,flowType:'implicit'}})},
+ async token(){if(!this.sb)return'';const{data}=await this.sb.auth.getSession();return data.session?data.session.access_token:''},
  async row(uid){const{data}=await this.sb.from('profiles').select('*').eq('id',uid).maybeSingle();if(!data)return null;
   const{data:inv}=await this.sb.from('inventory').select('item_id').eq('user_id',uid);
   return{uid,pid:data.pid,nick:data.nick,email:'',guest:!!data.guest,look:data.look,eq:cleanEq(data.eq),inv:(inv||[]).map(r=>r.item_id),cls:data.weapon,gold:data.gold,gems:data.gems,wins:data.wins,losses:data.losses,shots:data.shots,hits:data.hits,games:data.games}},
- async load(){await this.init();const{data}=await this.sb.auth.getSession();const u=data.session&&data.session.user;if(!u)return null;return await this.row(u.id)},
+ // sessão sem perfil (voltou do link do e-mail ou do Google pela 1ª vez): devolve a base para escolher o apelido
+ async load(){await this.init();const{data}=await this.sb.auth.getSession();const u=data.session&&data.session.user;if(!u)return null;return await this.row(u.id)||{uid:u.id,pid:'',nick:'',guest:!!u.is_anonymous}},
  async signIn(kind,email){await this.init();const sb=this.sb,back=location.href.split('#')[0];
   if(kind==='google'){await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:back}});return{wait:'Abrindo o Google...'}}
   if(kind==='email'){const{error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:back}});return error?{e:error.message}:{wait:'Enviamos um link de acesso para '+email+'. Abra o e-mail neste aparelho.'}}
@@ -1691,14 +1696,15 @@ const SupaDB={mode:'supabase',sb:null,
  async create(base,nick,lk){const{error}=await this.sb.from('profiles').insert({id:base.uid,nick,look:lk,weapon:sel,guest:!!base.guest});if(error)return null;return await this.row(base.uid)},
  async update(a){await this.sb.from('profiles').update({look:a.look,eq:a.eq,weapon:a.cls}).eq('id',a.uid);PS.fire({t:'pub',pub:pubOf(a)})},
  async buy(id){const{data,error}=await this.sb.rpc('buy_item',{p_item:id});if(error)return{e:error.message};Object.assign(ACC,{gold:data.gold,gems:data.gems});ACC.inv.push(id);return{ok:1}},
- async addMatch(){return{gold:0}}, // no Supabase quem grava é o servidor do jogo
+ // no Supabase quem grava é o servidor do jogo (confere o login e chama record_result com a chave secreta)
+ async addMatch(win,shots,hits){const r=await PS.req({t:'result',win:!!win,shots,hits});if(!r||!r.ok)return{gold:0};const a=await this.row(ACC.uid);if(a)Object.assign(ACC,a);return{gold:r.gold}},
  async find(q){const sb=this.sb;let r=/^\d{8}$/.test(q)?await sb.from('public_profiles').select('*').eq('pid',q).maybeSingle():await sb.from('public_profiles').select('*').ilike('nick',q).maybeSingle();return r.data?supaPub(r.data):null},
  async getProfile(uid){const{data}=await this.sb.from('public_profiles').select('*').eq('uid',uid).maybeSingle();return data?supaPub(data):null},
  async friends(){const{data}=await this.sb.rpc('my_friends');if(!data)return null;const st=await PS.req({t:'online',uids:data.map(d=>d.uid)})||{};
   const m=d=>Object.assign(supaPub(d),(st.map||{})[d.uid]||{on:0,st:'off'});return{list:data.filter(d=>d.rel==='friend').map(m),inc:data.filter(d=>d.rel==='in').map(m),out:data.filter(d=>d.rel==='out').map(m)}},
  async request(uid){const{error}=await this.sb.rpc('friend_request',{p_to:uid});if(!error)PS.fire({t:'ping',to:uid});return error?{e:error.message}:{ok:1}},
- async respond(uid,ok){const{error}=await this.sb.rpc('friend_respond',{p_from:uid,p_ok:!!ok});return error?{e:error.message}:{ok:1}},
- async unfriend(uid){const{error}=await this.sb.rpc('friend_remove',{p_uid:uid});return error?{e:error.message}:{ok:1}},
+ async respond(uid,ok){const{error}=await this.sb.rpc('friend_respond',{p_from:uid,p_ok:!!ok});if(!error)PS.fire({t:'ping',to:uid});return error?{e:error.message}:{ok:1}},
+ async unfriend(uid){const{error}=await this.sb.rpc('friend_remove',{p_uid:uid});if(!error)PS.fire({t:'ping',to:uid});return error?{e:error.message}:{ok:1}},
  async top(){const{data}=await this.sb.from('public_profiles').select('*').order('wins',{ascending:false}).limit(50);return(data||[]).map(supaPub)}};
 const supaPub=d=>({uid:d.uid,pid:d.pid,nick:d.nick,look:d.look,eq:cleanEq(d.eq),cls:d.weapon,wins:d.wins,losses:d.losses,shots:d.shots,hits:d.hits,games:d.games});
 const DB=SUPA.url&&SUPA.key?SupaDB:LocalDB;
@@ -1722,7 +1728,7 @@ async function doSignIn(kind){$('ast1').textContent='Entrando...';const em=$('ae
  if(kind==='email'&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){$('ast1').textContent='Digite um e-mail válido.';return}
  const r=await DB.signIn(kind,em);if(r.e){$('ast1').textContent=r.e;return}if(r.wait){$('ast1').textContent=r.wait;return}$('ast1').textContent='';
  if(r.acc.nick){ACC=r.acc;onLogin();return}
- authBase=r.acc;if(kind==='guest'){const n='Convidado'+(1000+Math.random()*9000|0);ACC=await DB.create(authBase,n,'sol');onLogin();return}
+ authBase=r.acc;if(kind==='guest'){const n='Convidado'+(1000+Math.random()*9000|0),a=await DB.create(authBase,n,'sol');if(!a){$('ast1').textContent='Não foi possível entrar como convidado.';return}ACC=a;onLogin();return}
  PS.start(true);$('a1').hidden=true;$('a2').hidden=false;$('anick').value='';$('anst').textContent='';$('anick').focus()}
 let aLook='sol',nickT=0;
 async function checkNickUI(){const n=$('anick').value.trim(),el=$('anst');if(!nickOk(n)){el.textContent=n?'✖ use 3 a 14 letras ou números':'';el.className='nst bad';return false}
@@ -1932,7 +1938,10 @@ $('prof').addEventListener('pointerdown',e=>{if(e.target.id==='prof')$('prof').h
 PV.push({on:()=>!$('inv').hidden&&ACC,draw:t=>drawFig($('invC'),ACC,t)},{on:()=>!$('shop').hidden&&ACC&&tryEq,draw:t=>drawFig($('shopC'),{look:ACC.look,eq:tryEq},t)},
  {on:()=>!$('prof').hidden&&profFig,draw:t=>drawFig($('profC'),profFig,t)},{on:()=>!$('auth').hidden&&!$('a2').hidden,draw:t=>drawFig($('aprev'),{look:aLook,eq:emptyEq()},t)},
  {on:()=>ACC&&!$('acct').hidden&&uiT%30===0,draw:()=>drawAv($('acav'),ACC)});
-(async()=>{let a=null;try{a=await DB.load()}catch(e){}if(a){ACC=a;onLogin()}else showAuth()})();
+(async()=>{let a=null;try{a=await DB.load()}catch(e){console.warn('login',e)}
+ if(a&&a.nick){ACC=a;onLogin();return}showAuth();if(!a)return;authBase=a;
+ if(a.guest){const b=await DB.create(a,'Convidado'+(1000+Math.random()*9000|0),'sol');if(b){ACC=b;onLogin()}return}
+ PS.start(true);$('a1').hidden=true;$('a2').hidden=false;$('anick').value='';$('anick').focus()})();
 </script>
 <script>
 // ===== Fundo animado das telas (login, menu, salas, loja, amigos, ranking) =====

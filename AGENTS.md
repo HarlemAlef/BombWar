@@ -125,12 +125,13 @@ L = {code, mode, name, dn, lock, off, fmt, map, tod, host,
 
 ## Contas e banco de dados
 
-- **Interface única:** todo acesso a dados passa por `DB` (`LocalDB` agora, `SupaDB` quando `SUPA.url` e `SUPA.key` forem preenchidos). Métodos: `load, signIn, signOut, checkNick, create, update, buy, addMatch, find, getProfile, friends, request, respond, unfriend, top`.
+- **Interface única:** todo acesso a dados passa por `DB`: `SupaDB` (ligado; `SUPA` = projeto `zfqzzzidzyfbmwqlxpjp` + chave publicável) ou `LocalDB` (se `SUPA` ficar vazio). Métodos: `load, signIn, signOut, checkNick, create, update, buy, addMatch, find, getProfile, friends, request, respond, unfriend, top`.
 - **Conta (`ACC`):** `uid, pid (ID de 8 números), nick, email, guest, look, eq {hat,face,body,back,feet}, inv [ids], cls, gold, gems, wins, losses, shots, hits, games`.
 - **Presença (`PS`, WebSocket `/ws?presence=1`):** mensagens `hello, pub, status {s: menu|lobby|game, room}, nick, find, online, friends, freq, fresp, unfriend, top, invite, ping`. O servidor avisa `fst` (status de amigo), `freqIn` (pedido novo), `fupd` (lista mudou) e `invite`.
 - **Na sala:** `hi` leva `eq, uid, pid`; a mensagem `eq` troca o equipamento; `go` leva `eq` e `uid` de cada jogador; `newGame` guarda `p.eq`. Toda skin vinda da rede passa por `cleanEq`.
-- **Supabase:** `db/schema.sql` (testado num Postgres 16 local com um `auth` simulado). O jogador só pode gravar `nick, look, weapon, guest` (ao criar) e `look, eq, weapon` (depois); o gatilho `check_eq` impede equipar item que não tem; ouro, gemas e estatísticas só mudam por `buy_item` ou `record_result` (só service_role). `SupaDB` ainda não foi testado com um projeto real.
-- **Falta para fechar o banco:** preencher `SUPA`; o servidor validar o token do Supabase no `hello` e gravar partidas com `record_result` (hoje `addMatch` grava só no modo local); trocar `dev-store.json` por consultas ao Postgres.
+- **Supabase:** `db/schema.sql` (testado num Postgres 16 local com um `auth` simulado). Cliente: supabase-js 2.105.4 (UMD pelo jsDelivr), `flowType:'implicit'` (o link do e-mail funciona em outro aparelho). `SupaDB.load` devolve a conta, ou `{uid, nick:''}` quando há sessão sem perfil (volta do link/Google): o início do jogo abre direto a escolha de apelido. O jogador só pode gravar `nick, look, weapon, guest` (ao criar) e `look, eq, weapon` (depois); o gatilho `check_eq` impede equipar item que não tem; ouro, gemas e estatísticas só mudam por `buy_item` ou `record_result` (só service_role). Testado com um Supabase simulado (falso `supabase-js` no navegador + servidor HTTP falso); falta o teste com o projeto real.
+- **Servidor com Supabase** (variáveis `SUPABASE_URL` e `SUPABASE_SECRET` no Render): `hello` leva `token` e o servidor confere em `/auth/v1/user` (cache de 5 min); `result {win,shots,hits}` grava via `/rest/v1/rpc/record_result` (+60 ouro vitória, +20 derrota; no máximo 1 a cada 30 s por jogador; tiros ≤ 80). Amigos para status e convites vêm de `friendships` (`loadFriends`, recarregado no `ping`). Nesse modo o `dev-store.json` não é gravado. Convidados (login anônimo) também se conectam à presença para gravar partidas.
+- **Ainda falta:** o resultado é informado pelo próprio jogador (o servidor só confere quem é e limita os valores); convidado que cria conta começa uma conta nova (sem migrar o progresso).
 
 ## Limitações conhecidas
 
@@ -138,3 +139,4 @@ L = {code, mode, name, dn, lock, off, fmt, map, tod, host,
 - O P2P não tem servidor TURN: falha em algumas redes (4G, redes de empresa).
 - Fogo amigo está ligado: o tiro também acerta o próprio time.
 - No modo local, a conta fica no aparelho e o servidor confia no `uid` enviado (é só para desenvolvimento).
+- Com Supabase, vitória/derrota e tiros são informados pelo cliente (o servidor não simula a partida). Para um ranking competitivo, o próximo passo é o servidor conferir o resultado com os outros jogadores da sala.

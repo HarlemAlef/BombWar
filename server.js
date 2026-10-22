@@ -16,8 +16,38 @@ const STORE = process.env.DEV_STORE || path.join(__dirname, 'dev-store.json');
 let store = { profiles: {}, friends: {}, reqs: {} };
 try { store = Object.assign(store, JSON.parse(fs.readFileSync(STORE, 'utf8'))); } catch (e) {}
 let saveT = null;
-const save = () => { clearTimeout(saveT); saveT = setTimeout(() => { try { fs.writeFileSync(STORE, JSON.stringify(store)); } catch (e) {} }, 800); };
+const save = () => { if (sbOn) return; clearTimeout(saveT); saveT = setTimeout(() => { try { fs.writeFileSync(STORE, JSON.stringify(store)); } catch (e) {} }, 800); };
 const online = new Map(); // uid -> { ws, st, room }
+
+// ===== Supabase (quando SUPABASE_URL e SUPABASE_SECRET estão nas variáveis de ambiente) =====
+// O servidor confere o login de cada jogador (token do Supabase) e grava o resultado das partidas com a chave secreta.
+// Perfis, amigos, loja e ranking vêm direto do banco pelo jogo; aqui fica só quem está online e os convites.
+const SB = { url: (process.env.SUPABASE_URL || '').trim().replace(/\/+$/, '').replace(/\/rest\/v1$/, ''), key: (process.env.SUPABASE_SECRET || '').trim() };
+const sbOn = !!(SB.url && SB.key);
+async function sbFetch(p, opt = {}) {
+  const r = await fetch(SB.url + p, Object.assign({}, opt, { headers: Object.assign({ apikey: SB.key, 'content-type': 'application/json' }, opt.headers || {}) }));
+  const t = await r.text();
+  if (!r.ok) throw new Error(r.status + ' ' + t.slice(0, 200));
+  return t ? JSON.parse(t) : null;
+}
+const tokCache = new Map(); // token -> { uid, t }
+async function userOf(token) {
+  if (!token || typeof token !== 'string' || token.length > 4000) return null;
+  const c = tokCache.get(token); if (c && Date.now() - c.t < 5 * 60e3) return c.uid;
+  try {
+    const u = await sbFetch('/auth/v1/user', { headers: { authorization: 'Bearer ' + token } });
+    if (!u || !u.id) return null;
+    if (tokCache.size > 5000) tokCache.clear();
+    tokCache.set(token, { uid: u.id, t: Date.now() }); return u.id;
+  } catch (e) { return null; }
+}
+const sbFr = new Map(); // uid -> [amigos], lido do banco
+async function loadFriends(uid) {
+  if (!sbOn || !uid) return;
+  try { const rows = await sbFetch('/rest/v1/friendships?select=b&a=eq.' + encodeURIComponent(uid)); sbFr.set(uid, rows.map(r => r.b)); } catch (e) { console.log('amigos', e.message); }
+}
+const lastRes = new Map(); // uid -> hora do último resultado gravado
+if (sbOn) console.log('Supabase ligado:', SB.url); else console.log('Supabase desligado: modo de desenvolvimento (dev-store.json)');
 const SLOTS = ['hat', 'face', 'body', 'back', 'feet'];
 const int = v => Math.max(0, Math.min(1e9, v | 0));
 function cleanPub(p, uid) {
@@ -28,7 +58,7 @@ function cleanPub(p, uid) {
 }
 function pubOf(uid) { const p = store.profiles[uid]; if (!p) return null; const o = online.get(uid); return Object.assign({}, p, { on: o ? 1 : 0, st: o ? o.st : 'off', room: o ? o.room : '' }); }
 function sendTo(uid, o) { const c = online.get(uid); if (c && c.ws.readyState === 1) c.ws.send(JSON.stringify(o)); }
-const fr = uid => store.friends[uid] || (store.friends[uid] = []);
+const fr = uid => sbOn ? (sbFr.get(uid) || []) : (store.friends[uid] || (store.friends[uid] = []));
 const rq = uid => store.reqs[uid] || (store.reqs[uid] = []); // pedidos recebidos por uid
 function tellFriends(uid) { const o = online.get(uid); fr(uid).forEach(f => sendTo(f, { t: 'fst', uid, on: o ? 1 : 0, st: o ? o.st : 'off', room: o ? o.room : '' })); }
 function nickTaken(nick, uid) { const n = nick.toLowerCase(); return Object.values(store.profiles).some(p => p.uid !== uid && p.nick.toLowerCase() === n); }
@@ -40,6 +70,15 @@ function presence(ws) {
     const reply = x => { x.rid = o.rid; if (ws.readyState === 1) ws.send(JSON.stringify(x)); };
     if (o.t === 'hello') {
       const uid = str(o.uid, 40).replace(/[^\w-]/g, ''); if (!uid) return;
+      if (sbOn) { // confere no Supabase que o token é mesmo desse jogador
+        userOf(o.token).then(async real => {
+          if (real !== uid) return reply({ t: 'hello', e: 'Sessão expirada. Saia e entre de novo.' });
+          const old = online.get(uid); if (old && old.ws !== ws) try { old.ws.close(); } catch (e) {}
+          me = uid; store.profiles[uid] = cleanPub(o.pub, uid); online.set(uid, { ws, st: 'menu', room: '' }); // perfil só em memória (convites)
+          await loadFriends(uid); tellFriends(uid); reply({ t: 'hello', ok: 1 });
+        });
+        return;
+      }
       const old = online.get(uid); if (old && old.ws !== ws) try { old.ws.close(); } catch (e) {}
       me = uid; const p = cleanPub(o.pub, uid); const taken = nickTaken(p.nick, uid);
       store.profiles[uid] = p; online.set(uid, { ws, st: 'menu', room: '' }); save(); tellFriends(uid);
@@ -48,7 +87,17 @@ function presence(ws) {
     if (o.t === 'nick') return reply({ t: 'nick', ok: !nickTaken(str(o.nick, 14), me) });
     if (!me) return;
     switch (o.t) {
-      case 'pub': store.profiles[me] = cleanPub(o.pub, me); save(); return;
+      case 'pub': store.profiles[me] = cleanPub(o.pub, me); if (!sbOn) save(); return;
+      case 'result': { // fim de partida: só com Supabase; no máximo 1 resultado a cada 30 s por jogador
+        if (!sbOn) return reply({ t: 'result', e: 'off' });
+        const now = Date.now(); if (now - (lastRes.get(me) || 0) < 30e3) return reply({ t: 'result', e: 'cedo' });
+        lastRes.set(me, now);
+        const shots = Math.max(0, Math.min(80, o.shots | 0)), hits = Math.max(0, Math.min(shots, o.hits | 0)), win = !!o.win, gold = win ? 60 : 20;
+        sbFetch('/rest/v1/rpc/record_result', { method: 'POST', body: JSON.stringify({ p_user: me, p_win: win, p_shots: shots, p_hits: hits, p_gold: gold }) })
+          .then(() => reply({ t: 'result', ok: 1, gold }))
+          .catch(e => { console.log('record_result', e.message); reply({ t: 'result', e: 'falhou' }); });
+        return;
+      }
       case 'status': { const c = online.get(me); if (!c) return; c.st = ['menu', 'lobby', 'game'].includes(o.s) ? o.s : 'menu'; c.room = str(o.room, 12); tellFriends(me); return; }
       case 'nick': return reply({ t: 'nick', ok: !nickTaken(str(o.nick, 14), me) });
       case 'find': { const q = str(o.q, 40).replace(/^#/, ''); let uid = store.profiles[q] ? q : null;
@@ -78,7 +127,7 @@ function presence(ws) {
           .sort((a, b) => (b.wins - a.wins) || (b.wins / (b.games || 1) - a.wins / (a.games || 1))).slice(0, 50).map(p => pubOf(p.uid));
         return reply({ t: 'top', list }); }
       case 'invite': { const to = str(o.to, 40); if (fr(me).includes(to)) sendTo(to, { t: 'invite', from: pubOf(me), code: str(o.code, 12) }); return; }
-      case 'ping': { const to = str(o.to, 40); sendTo(to, { t: 'fupd' }); return; }
+      case 'ping': { const to = str(o.to, 40); if (sbOn) { loadFriends(me); loadFriends(to); } sendTo(to, { t: 'fupd' }); return; }
     }
   });
   ws.on('close', () => { if (me && online.get(me) && online.get(me).ws === ws) { online.delete(me); tellFriends(me); } });

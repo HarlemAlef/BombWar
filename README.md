@@ -45,20 +45,20 @@ Para quem vai mexer no código (pessoa ou agente de IA): leia o **[AGENTS.md](AG
 - **Ranking:** os 50 jogadores com mais vitórias.
 - **Convidados** jogam normalmente, mas não compram nem adicionam amigos. Ao criar conta, o progresso do convidado é transferido.
 
-### Modo de desenvolvimento (agora) e Supabase (próximo passo)
+### Banco de dados (Supabase)
 
-Enquanto o Supabase não está ligado, o jogo roda em **modo de desenvolvimento**:
-- a conta (saldo, itens, estatísticas) fica salva **no aparelho**;
-- apelidos, amigos, pedidos e ranking ficam no servidor do jogo, no arquivo `dev-store.json`. No plano grátis do Render esse arquivo é apagado a cada deploy ou reinício.
+O jogo está ligado ao projeto Supabase `zfqzzzidzyfbmwqlxpjp`. Login com Google, e-mail (link mágico) ou convidado; conta, loja, armazém, amigos e ranking ficam no banco e valem em qualquer aparelho. O resultado de cada partida (vitórias, derrotas, precisão e ouro) é gravado pelo servidor do jogo.
 
-**Como ligar o Supabase** (quando você tiver as chaves):
-1. Crie um projeto grátis em [supabase.com](https://supabase.com).
-2. No painel, abra **SQL Editor**, cole o arquivo `db/schema.sql` inteiro e clique em **Run**. Isso cria as tabelas, as travas de segurança, as funções de compra e de amizade e os 50 itens.
-3. Em **Authentication → Providers**, ative **E-mail** e **Google** (o Google pede um "Client ID" criado no Google Cloud; o painel do Supabase explica). Em **Authentication → Settings**, ative **Anonymous sign-ins** (convidados).
-4. Em **Authentication → URL Configuration**, coloque o endereço do jogo (ex.: `https://bombwar.onrender.com`).
-5. Em **Project Settings → API**, copie a **Project URL** e a chave **anon public** e me mande. Eu coloco no `SUPA` do `index.html`, ligo a gravação das partidas no servidor e testamos juntos.
+**Configuração (já feita / para refazer num projeto novo):**
+1. **SQL Editor:** cole `db/schema.sql` inteiro e clique em **Run**.
+2. **Authentication → Sign In / Providers:** ligue **Email**, **Anonymous sign-ins** (convidados) e, se quiser, **Google** (Client ID e Secret do Google Cloud).
+3. **Authentication → URL Configuration:** **Site URL** = endereço do jogo (ex.: `https://bombwar.onrender.com`) e o mesmo em **Redirect URLs**.
+4. **index.html:** `SUPA` = Project URL (`https://<id>.supabase.co`, sem `/rest/v1/`) + chave **publicável** (`sb_publishable_...`). Ela pode ficar no código.
+5. **Render → seu serviço → Environment:** crie `SUPABASE_URL` (a Project URL) e `SUPABASE_SECRET` (a chave **secreta** `sb_secret_...`). Salve; o Render reinicia sozinho. No log deve aparecer `Supabase ligado`.
 
-A chave **service_role** é secreta: ela vai só nas variáveis de ambiente do Render, nunca no código do jogo.
+Sem essas duas variáveis o servidor volta ao **modo de desenvolvimento** (amigos e ranking em `dev-store.json`). Para o jogo inteiro voltar ao modo de desenvolvimento, deixe `SUPA` vazio no `index.html`.
+
+A chave **secreta** (`sb_secret_...`, antiga service_role) vai só nas variáveis de ambiente do Render, nunca no código, no GitHub ou em conversas. Se ela vazar, apague e crie outra em **Project Settings → API Keys**.
 
 ## Personagens e armas
 
@@ -174,3 +174,4 @@ Do mais antigo para o mais recente:
 13. Contas (login com Google, e-mail ou convidado; apelido único e ID), 50 skins em 5 tipos, Armazém com arrastar e soltar, Loja por abas, amigos com status online, perfis, ranking e convite para sala. Banco do Supabase pronto em `db/schema.sql`.
 14. Fim da escolha de personagem: todas as contas usam o personagem padrão (camiseta azul e short preto) e se personalizam com skins.
 15. O jogo passou a se chamar **BombWar**: logo nova e batalha de demonstração animada atrás do login e dos menus.
+16. Supabase ligado: contas, loja, amigos e ranking no banco; o servidor confere o login e grava o resultado das partidas.
