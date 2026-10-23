@@ -11,7 +11,7 @@ Para quem vai mexer no código (pessoa ou agente de IA): leia o **[AGENTS.md](AG
 | Ação | Teclado | Celular (botões na tela) |
 |---|---|---|
 | Mover | ← → (Shift = passo fino) | ◀ ▶ |
-| Ângulo | ↑ ↓ (Shift = ajuste fino) | ▲ ▼ (toque rápido = ajuste fino) |
+| Ângulo do cano | ↑ ↓ (Shift = ajuste fino) | ▲ ▼ (toque rápido = ajuste fino) |
 | Atirar | segure **Espaço** para carregar a força e solte | segure **FOGO** e solte |
 | Power-ups | teclas **1 a 7** ou clique no botão | toque no botão |
 | Chat | **Enter** | — |
@@ -21,6 +21,7 @@ Para quem vai mexer no código (pessoa ou agente de IA): leia o **[AGENTS.md](AG
 - **Início:** as posições e a distância entre os jogadores são sorteadas a cada partida (os times podem se misturar, sem deixar ninguém sozinho contra dois), e **quem começa também é sorteado**.
 - Turnos de **20 segundos**. Se o tempo acabar enquanto você carrega a força, o tiro sai sozinho.
 - Na vez do outro jogador, você não consegue fazer nada.
+- **Veículo inclinado:** o veículo acompanha o chão (até 45° para cima ou para baixo) e o cano mira dentro de uma faixa fixa em relação ao veículo. Numa subida a faixa sobe junto (e dá até para atirar para trás); numa descida ela desce. Na sua vez, um leque claro mostra a faixa. O medidor no canto de baixo mostra o chão (linha amarela), a faixa permitida, o ângulo real do tiro e o texto "chão +20°".
 - O painel de cada jogador mostra a **força, o ângulo e o vento do último tiro**, para ajudar a corrigir a mira.
 - O que você digita no chat aparece num **balão em cima do personagem**.
 - Os botões na tela para celular ficam em **⚙ Configurações**, no canto do menu e na lateral da tela durante a partida. O FOGO fica no canto de baixo à direita, para não tapar o mapa.
@@ -30,7 +31,7 @@ Para quem vai mexer no código (pessoa ou agente de IA): leia o **[AGENTS.md](AG
 
 ## Menu (cidade)
 
-Cada prédio é um botão, com luz quando o mouse passa por cima: **Inventário** (depósito), **Loja**, **Arena** (castelo no centro, com o botão **Jogue agora**), **Hall da Fama** (ranking) e **Amigos** (taverna). Postes e janelas acesas, vaga-lumes, fumaça e fogos saindo dos canhões da Arena dão vida à cena. O **cartão do jogador** fica no canto de cima, à esquerda, no menu, na lista de salas e dentro da sala; clicar nele abre o **Inventário** (dá para trocar de roupa na sala, nunca durante a partida). A arma é escolhida dentro da sala.
+Cada prédio é um botão, com luz quando o mouse passa por cima: **Inventário** (depósito), **Loja**, **Arena** (castelo no centro, com o botão **Jogue agora**), **Hall da Fama** (ranking) e **Amigos** (taverna). Postes e janelas acesas, vaga-lumes, fumaça e fogos saindo dos canhões da Arena dão vida à cena. O **cartão do jogador** fica no canto de cima, à esquerda, no menu, na lista de salas e dentro da sala; clicar nele abre o **Inventário** (dá para trocar de roupa na sala, nunca durante a partida). O veículo é escolhido dentro da sala.
 
 ## Modos
 
@@ -49,8 +50,8 @@ Cada prédio é um botão, com luz quando o mouse passa por cima: **Inventário*
 - **Login:** Google, e-mail ou convidado. Na criação da conta você escolhe um **apelido único** (3 a 14 letras ou números) e o personagem básico, sem skins. Cada conta recebe um **ID público de 8 números**.
 - **Saldo inicial (versão de testes):** 1.000 de ouro e **10.000 gemas**. Ouro também se ganha jogando: +60 por vitória e +20 por derrota; partida com bots dá +20 de participação.
 - **Estatísticas:** vitórias, derrotas, % de vitórias, precisão e partidas. **Só contam partidas entre jogadores**: se tiver qualquer bot na partida, ela não entra nas estatísticas nem no ranking.
-- **Loja:** 50 skins em 5 abas (Chapéu, Rosto, Roupa, Costas e Calçado), com 4 raridades (Comum e Raro custam ouro; Épico e Lendário custam gemas). Dá para buscar pelo nome, filtrar por raridade, ordenar por preço, esconder o que já tem e **provar** antes de comprar.
-- **Inventário:** grade com os seus itens, no estilo do DDTank. **Arraste** um item até o espaço do personagem para equipar (ou dê dois cliques), e arraste de volta para a grade para tirar. Funciona com o dedo no celular.
+- **Loja:** 50 skins de personagem em 5 abas (Chapéu, Rosto, Roupa, Costas e Calçado) e **25 skins de veículo** na aba **Veículos** (5 por veículo), com 4 raridades (Comum e Raro custam ouro; Épico e Lendário custam gemas). Dá para buscar pelo nome, filtrar por raridade, ordenar por preço, esconder o que já tem e **provar** antes de comprar. No provador, a skin de veículo aparece com o tiro dela voando.
+- **Inventário:** grade com os seus itens, no estilo do DDTank. **Arraste** um item até o espaço do personagem para equipar (ou dê dois cliques), e arraste de volta para a grade para tirar. Funciona com o dedo no celular. Na aba **Veículos**, clique na skin e em **Equipar**: cada veículo guarda a sua própria skin.
 - **Amigos:** busque pelo ID ou apelido, ou clique no nome de alguém na sala para ver o perfil (skins e estatísticas) e mandar pedido. A lista mostra quem está **online**, **na sala** ou **em partida**. Na sala, o botão **Convidar amigos** manda um convite com o código.
 - **Ranking (Hall da Fama):** os 50 jogadores com mais vitórias em partidas sem bots.
 - **Convidados** jogam normalmente, mas não compram nem adicionam amigos. Ao criar conta, o progresso do convidado é transferido.
@@ -70,20 +71,31 @@ Sem essas duas variáveis o servidor volta ao **modo de desenvolvimento** (amigo
 
 A chave **secreta** (`sb_secret_...`, antiga service_role) vai só nas variáveis de ambiente do Render, nunca no código, no GitHub ou em conversas. Se ela vazar, apague e crie outra em **Project Settings → API Keys**.
 
-## Personagens e armas
+## Personagens e veículos
 
-Todo mundo joga com o **mesmo personagem padrão** (camiseta azul, short preto e cabelo curto). A cor do time aparece na faixa do ombro, no nome e na barra de vida, e a personalização é feita com as skins da Loja. Cada jogador escolhe só a **arma**, que define o tiro. Todos têm **1000 de vida**.
+Todo mundo joga com o **mesmo personagem padrão** (camiseta azul, short preto e cabelo curto), que vai **pilotando um veículo**. A cor do time aparece na faixa do ombro, no veículo, no nome e na barra de vida, e a personalização é feita com as skins da Loja (as roupas continuam valendo no piloto). Cada jogador escolhe o **veículo**, que define o tiro. Todos têm **1000 de vida**.
 
-| Arma | Dano | Raio | Como é |
-|---|---|---|---|
-| Canhão Pesado | 215 | 66 | tiro forte e confiável, área de dano grande e cratera pequena |
-| Rifle de Precisão | 263 | 40 | muito dano, tiro rápido e trajetória plana |
-| Cajado Arcano | 170 + queima 40 por 2 turnos | 44 | queima o alvo |
-| Morteiro | 125 por bola | 66 | duas bolas que se cruzam na saída, se abrem bastante (até 140 px) e só se juntam depois de uns 2,5 s de voo. Só tiros bem altos acertam as duas |
-| Bola Quicante | 230 | 58 | quica uma vez no chão (mais forte quanto mais alto vier) e explode no segundo toque; acerto direto explode na hora |
+| Veículo | Tiro | Dano | Raio | Mira (em relação ao veículo) | Como é |
+|---|---|---|---|---|---|
+| Tanque Bolota | míssil | 215 | 66 | 0° a 90° | tiro forte e confiável, área de dano grande e cratera pequena |
+| Jipe Mira | bala calibre .50 | 263 | 40 | -10° a 70° | muito dano, tiro rápido e trajetória plana; não mira alto |
+| Kart Arcano | bola de fogo com rastro | 170 + queima 40 por 2 turnos | 44 | 10° a 100° | flutua; queima o alvo |
+| Carrinho de Obra | duas bolas de ferro | 125 por bola | 66 | 30° a 120° | duas bolas que se cruzam na saída, se abrem bastante (até 140 px) e só se juntam depois de uns 2,5 s de voo. Só tiros bem altos acertam as duas; passa da vertical e atira para trás |
+| Monstro Mola | bola quicante | 230 | 58 | 0° a 90° | quica uma vez no chão (mais forte quanto mais alto vier) e explode no segundo toque; acerto direto explode na hora |
 
-Valores ajustados depois do teste de 1.000 partidas entre bots (relatório de balanceamento de 22/10/2026).
+Valores de dano ajustados depois do teste de 1.000 partidas entre bots (relatório de balanceamento de 22/10/2026). A área de acerto de cada jogador ficou um pouco maior (36 × 48 px) para acompanhar o tamanho do veículo.
 
+### Skins de veículo
+
+Cada veículo tem 5 skins na Loja, com raridade igual às roupas. Algumas só trocam as cores; outras trocam o **formato do veículo** (inclusive animais), com animações paradas. Toda skin troca também o **projétil**, o **rastro**, a **explosão** e a **cor da borda da cratera**. Nada disso muda dano, raio ou física.
+
+| Veículo | Skins |
+|---|---|
+| Tanque Bolota | **Tanque do Deserto** (Comum, 900 ouro): só cores<br>**Tanque Ártico** (Raro, 2.200 ouro): neve no casco, míssil de gelo e estilhaços<br>**Tanque de Corda** (Épico, 600 💎): brinquedo com chave girando, foguete de brinquedo, confete<br>**Tartaruga Couraçada** (Épico, 750 💎): tartaruga que anda e pisca, atira pedras<br>**Tanque do Rei** (Lendário, 1.800 💎): bandeira com coroa e brilhos, explode em moedas |
+| Jipe Mira | **Jipe da Selva** (Comum, 900 ouro): traçante verde<br>**Jipe Noturno** (Raro, 2.000 ouro): faróis de visão noturna, traçante verde<br>**Jipe de Rali** (Raro, 2.600 ouro): carro de rali com aerofólio e número 50<br>**Avestruz Corredora** (Épico, 650 💎): avestruz que corre, atira penas<br>**Jipe Spectre** (Lendário, 2.000 💎): flutua, atira laser |
+| Kart Arcano | **Kart Rubi** (Comum, 1.000 ouro): bola de fogo vermelha<br>**Kart Gelo Eterno** (Raro, 2.200 ouro): bola de gelo, estilhaços<br>**Nuvem de Tempestade** (Raro, 2.600 ouro): nuvem com relâmpagos e chuva, orbe elétrico<br>**Abóbora Assombrada** (Épico, 700 💎): rosto aceso, fantasma e morcegos<br>**Dragão Ancestral** (Lendário, 2.500 💎): bate as asas, solta fumaça, cospe bola de fogo maior |
+| Carrinho de Obra | **Carrinho Militar** (Comum, 900 ouro): só cores<br>**Carrinho Bombeiro** (Raro, 2.000 ouro): escada, sirene, bolas d'água<br>**Trator da Fazenda** (Raro, 2.400 ouro): trator com fumaça, atira melancias<br>**Elefante de Carga** (Épico, 750 💎): orelhas e tromba mexendo, atira pedras<br>**Engrenagem a Vapor** (Lendário, 1.900 💎): engrenagens girando, chaminé, atira engrenagens |
+| Monstro Mola | **Monstro Chiclete** (Comum, 1.000 ouro): bola de chiclete<br>**Monstro de Lava** (Raro, 2.300 ouro): rachaduras acesas, bola de magma<br>**Buggy de Praia** (Raro, 2.400 ouro): prancha de surfe, bola de praia<br>**Sapo Saltador** (Épico, 700 💎): pisca e infla o papo, bola de gosma<br>**Monstro Galáctico** (Lendário, 2.200 💎): disco voador com luzes, planetinha com anel |
 
 ## Power-ups
 
@@ -190,3 +202,4 @@ Do mais antigo para o mais recente:
 16. Supabase ligado: contas, loja, amigos e ranking no banco; o servidor confere o login e grava o resultado das partidas.
 17. Menu em forma de cidade (Inventário, Loja, Arena, Hall da Fama, Amigos) com luzes e fogos; cartão do jogador na sala com acesso ao inventário; Jogar Offline desativado (bots na Arena); ranking só com partidas sem bots; Morteiro exige tiro mais alto; botões de toque menores; tela cheia; zoom com pinça/roda, câmera que acompanha o tiro e minimapa.
 18. Balanceamento pelo relatório de 1.000 partidas (Bola Quicante, Morteiro e Rifle mais fortes/fracos, Rifle +5% de dano, Chuva de bombas 5×70 sem Dano x2, Tiro triplo 65%; depois da 2ª rodada de 1.000 partidas, queimadura do Cajado 45 → 40); power-ups com uma carga; Morteiro conta como um projétil para power-ups; bots usam o Avião; posições e primeiro turno sorteados; pódio com os personagens no fim da partida; botão Assistir e expulsão pelo líder na sala.
+19. **Veículos** no lugar das armas (Tanque Bolota, Jipe Mira, Kart Arcano, Carrinho de Obra e Monstro Mola), com o personagem pilotando; veículo inclina com o terreno (até 45°) e mira numa faixa fixa em relação ao veículo (dá para atirar para trás); medidor e leque de mira novos; projéteis próprios (míssil, bala .50, bola de fogo com rastro, bolas de ferro, bola quicante); 25 skins de veículo na Loja (5 por veículo, com raridade), que trocam formato, animações, projétil, rastro, explosão e cor da cratera; área de acerto um pouco maior.

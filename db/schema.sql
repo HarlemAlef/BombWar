@@ -28,12 +28,16 @@ create unique index if not exists profiles_nick_lower on public.profiles (lower(
 
 create table if not exists public.items (
   id          text primary key,
-  slot        text not null check (slot in ('hat','face','body','back','feet')),
+  slot        text not null check (slot in ('hat','face','body','back','feet','vwar','vsni','vmag','vart','vbal')), -- v* = skin de veículo
   name        text not null,
   rarity      text not null check (rarity in ('c','r','e','l')),
   price_gold  int,
   price_gems  int
 );
+
+-- banco criado antes dos veículos: troca a regra antiga do slot pela nova
+alter table public.items drop constraint if exists items_slot_check;
+alter table public.items add constraint items_slot_check check (slot in ('hat','face','body','back','feet','vwar','vsni','vmag','vart','vbal'));
 
 create table if not exists public.inventory (
   user_id   uuid not null references public.profiles(id) on delete cascade,
@@ -119,7 +123,7 @@ create or replace function public.check_eq() returns trigger language plpgsql se
 declare k text; v text;
 begin
   for k, v in select key, value #>> '{}' from jsonb_each(new.eq) loop
-    if k not in ('hat','face','body','back','feet') then raise exception 'espaço inválido: %', k; end if;
+    if k not in ('hat','face','body','back','feet','vwar','vsni','vmag','vart','vbal') then raise exception 'espaço inválido: %', k; end if;
     if v is not null and not exists (select 1 from inventory i join items it on it.id = i.item_id
                                      where i.user_id = new.id and i.item_id = v and it.slot = k) then
       raise exception 'item % não está no armazém', v;
@@ -266,6 +270,32 @@ insert into public.items (id, slot, name, rarity, price_gold, price_gems) values
   ('s_clown', 'feet', 'Sapatos de Palhaço', 'e', null, 450),
   ('s_wing', 'feet', 'Sandálias Aladas', 'e', null, 650),
   ('s_rocket', 'feet', 'Botas-Foguete', 'l', null, 1500),
-  ('s_gold', 'feet', 'Botas de Ouro', 'l', null, 1800)
+  ('s_gold', 'feet', 'Botas de Ouro', 'l', null, 1800),
+  -- skins de veículo
+  ('vw_desert', 'vwar', 'Tanque do Deserto', 'c', 900, null),
+  ('vw_arctic', 'vwar', 'Tanque Ártico', 'r', 2200, null),
+  ('vw_toy', 'vwar', 'Tanque de Corda', 'e', null, 600),
+  ('vw_turtle', 'vwar', 'Tartaruga Couraçada', 'e', null, 750),
+  ('vw_king', 'vwar', 'Tanque do Rei', 'l', null, 1800),
+  ('vs_jungle', 'vsni', 'Jipe da Selva', 'c', 900, null),
+  ('vs_night', 'vsni', 'Jipe Noturno', 'r', 2000, null),
+  ('vs_rally', 'vsni', 'Jipe de Rali', 'r', 2600, null),
+  ('vs_ostrich', 'vsni', 'Avestruz Corredora', 'e', null, 650),
+  ('vs_spectre', 'vsni', 'Jipe Spectre', 'l', null, 2000),
+  ('vm_ruby', 'vmag', 'Kart Rubi', 'c', 1000, null),
+  ('vm_frost', 'vmag', 'Kart Gelo Eterno', 'r', 2200, null),
+  ('vm_storm', 'vmag', 'Nuvem de Tempestade', 'r', 2600, null),
+  ('vm_pumpkin', 'vmag', 'Abóbora Assombrada', 'e', null, 700),
+  ('vm_dragon', 'vmag', 'Dragão Ancestral', 'l', null, 2500),
+  ('va_army', 'vart', 'Carrinho Militar', 'c', 900, null),
+  ('va_fire', 'vart', 'Carrinho Bombeiro', 'r', 2000, null),
+  ('va_tractor', 'vart', 'Trator da Fazenda', 'r', 2400, null),
+  ('va_elephant', 'vart', 'Elefante de Carga', 'e', null, 750),
+  ('va_steam', 'vart', 'Engrenagem a Vapor', 'l', null, 1900),
+  ('vb_gum', 'vbal', 'Monstro Chiclete', 'c', 1000, null),
+  ('vb_lava', 'vbal', 'Monstro de Lava', 'r', 2300, null),
+  ('vb_beach', 'vbal', 'Buggy de Praia', 'r', 2400, null),
+  ('vb_frog', 'vbal', 'Sapo Saltador', 'e', null, 700),
+  ('vb_galaxy', 'vbal', 'Monstro Galáctico', 'l', null, 2200)
 
 on conflict (id) do update set slot = excluded.slot, name = excluded.name, rarity = excluded.rarity, price_gold = excluded.price_gold, price_gems = excluded.price_gems;
