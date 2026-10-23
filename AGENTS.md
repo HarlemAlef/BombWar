@@ -49,6 +49,14 @@ O estado global da partida fica em `G`, criado do zero por `newGame` a cada part
 
 Vagas e times: vagas 0 e 2 são o Time Azul (`team 0`), vagas 1 e 3 são o Time Rosa (`team 1`). A ordem dos turnos é dada por `nextT()`.
 
+## Partida: modos, abates e destaques
+
+- `newGame(seed, players, {map, tod, ffa})`: `team = ffa ? i : i % 2`, `side = i % 2` (lado do painel e do minimapa), `lh` (último atacante). Campos novos em `G`: `ffa`, `kills[]`, `sui[]`, `feed[]` (destaques na tela), `cur` (tiro atual: `pi, back, top, dmg, kills, done`) e `rp` (resultado de `rpCalc`).
+- Fim: `liveTeams()` (times com alguém vivo); `wiped()` = 1 time ou menos; `teamName(t)` dá o nome do time ou do jogador (todos contra todos).
+- `spawnXs(N, r, ffa)`: de 2 a 6 jogadores; times não deixam o aliado muito mais longe que os inimigos; todos contra todos espalha por igual.
+- **Destaques** (`shotBadges`, chamado aos 8 quadros do fim do `wait` ou no `checkOver`): excelente (dano ≥ 300), de costas (`cur.back` e acertou), alto (`cur.top` < -200 e acertou), dois coelhos (`cur.kills` ≥ 2). `feed()` desenha na lateral esquerda; som `AU.badge`. Tudo é calculado igual em todos os clientes, então todos veem.
+- **IA de costas:** se o melhor tiro de frente ficou ruim (`b.d > 30`), `planAI` vira o veículo para longe do inimigo e procura ângulos reais de 92° a 170° dentro da faixa (`b.f` guarda o lado escolhido).
+
 ## Veículos
 
 - Cada `cls` é um veículo com o personagem pilotando. `drawChar` desvia para `drawVeh`, que desenha: fundo do veículo (`back`) → piloto (`drawChar` com `'veh'`, sem arma) → frente (`front`) → cano girando no pivô `(2,-19)` (`gun`) → tampa (`cap`) e a mão do piloto. Tudo gira com `VT` (graus, + = chão subindo para a direita) em volta do ponto de apoio.
@@ -76,10 +84,10 @@ Vagas e times: vagas 0 e 2 são o Time Azul (`team 0`), vagas 1 e 3 são o Time 
 
 | Tipo | Quem envia | Conteúdo |
 |---|---|---|
-| `hi` | quem entra | `name`, `cls` (arma), `look` |
+| `hi` | quem entra | `name`, `cls` (veículo), `look`, `eq`, `uid`, `pid` |
 | `cls`, `look`, `slot`, `ready` | membro | arma / personagem / vaga / pronto (o líder aplica em `hostApply`). `slot` com `s: -1` = ir para a plateia (`mem.spec = true`; `fillSlots` e o `hi` não colocam espectador em vaga) |
 | `lobby` | líder | objeto `L` completo |
-| `go` | líder | `seed`, `players[{cid,name,cls,look,bot,df}]`, `map`, `tod` |
+| `go` | líder | `seed`, `players[{cid,name,cls,look,eq,uid,bot,df}]` (2, 4 ou 6; com sorteio a lista já vem embaralhada), `map`, `tod`, `ffa` |
 | `st`, `fire`, `item`, `turn` | jogador da vez (ou o líder, no caso de bots) | sempre com `pi` e `tn`; `fire` tem `x,y,vy,ar`; `turn` tem `hp,bn,x,f` |
 | `chat`, `sys`, `quit` | todos / líder / líder | — |
 
@@ -93,25 +101,29 @@ Vagas e times: vagas 0 e 2 são o Time Azul (`team 0`), vagas 1 e 3 são o Time 
 | `exists`, `nf`, `badpw`, `full` | erros ao criar ou entrar numa sala |
 | `kicked` | você foi expulso (ou tentou voltar antes de 10 min); a conexão é fechada em seguida |
 
-Mensagens que o servidor intercepta e **não** repassa: `kick {cid}` (só do líder: fecha a conexão do alvo e guarda `r.ban` por cid e uid durante 10 min; o `uid` vem na URL do WebSocket), `meta` (nome, líder, formato, vagas e "em partida", usados na lista de salas) e `pw` (troca de senha). Só são aceitas do líder atual. A senha fica só no servidor.
+Mensagens que o servidor intercepta e **não** repassa: `kick {cid}` (só do líder: fecha a conexão do alvo e guarda `r.ban` por cid e uid durante 10 min; o `uid` vem na URL do WebSocket), `meta` (nome, líder, formato `1v1|2v2|3v3`, `ffa`, vagas e "em partida", usados na lista de salas) e `pw` (troca de senha). Só são aceitas do líder atual. A senha fica só no servidor.
 
 ### Objeto da sala
 
 ```
-L = {code, mode, name, dn, lock, off, fmt, map, tod, host,
+L = {code, mode, name, dn, lock, off, fmt ('1v1'|'2v2'|'3v3'), ffa, rnd, map, tod, host,
      mem: {cid: {name, cls, look, eq, uid, pid, st, bot, ready, df, spec}},
-     slots: [cid | null] × 4, nb}
+     slots: [cid | null] × 6, nb}
 ```
 
 - `dn = true`: a sala usa o nome padrão "Sala de (líder)". Ele é renomeado quando a liderança passa.
 - `off = 1`: sala offline. É a mesma interface, com `isHost = true` e `net = null`.
+- `FMTN` dá as vagas ativas (2, 4, 6) e `actN()` o número atual. Vagas pares = Time Azul, ímpares = Time Rosa; no todos contra todos (`ffa`) cada vaga é um time (`team = índice`) e o lado na tela é `side = i % 2`.
+- `rnd` (sorteio): `hostStart` embaralha a lista de jogadores (com `Math.random`, só no líder) antes de mandar o `go`; a ordem final define os times.
+- O líder não precisa marcar pronto (`lobbyReady` conta o líder como pronto).
+- Tela: `renderLobby`/`slotEl` (vagas `.lsl` com `figVeh`, patente e chips), `mapThumb` (miniatura do mapa), `openMcfg`/`mcfgStep`/`mcfgSave` (modal **Configurações da partida**, `#lcfg`; só leitura para quem não é líder), `openVeh` (modal **Veículo**, `#vpick`; usa `selectClass` + `req({t:'cls'})`). Botões `#lside` (Lado) e `#lspec` (Assistir/Jogar).
 
 ## server.js
 
 - `GET /rooms`: lista de salas em JSON.
 - `GET` em qualquer outro caminho: entrega o `index.html`.
 - WebSocket `/ws?room=CÓDIGO&cid=ID&uid=CONTA&create=1&pw=SENHA`.
-- Até 8 conexões por sala. Quando a última pessoa sai, a sala é apagada. Se o líder sai, o próximo da lista (o mais antigo) vira líder.
+- Até 10 conexões por sala (6 jogadores + plateia). Quando a última pessoa sai, a sala é apagada. Se o líder sai, o próximo da lista (o mais antigo) vira líder.
 - Porta: `process.env.PORT` (padrão 8080).
 
 ## Armazenamento local (localStorage)
@@ -140,13 +152,16 @@ L = {code, mode, name, dn, lock, off, fmt, map, tod, host,
 
 ## Contas e banco de dados
 
-- **Interface única:** todo acesso a dados passa por `DB`: `SupaDB` (ligado; `SUPA` = projeto `zfqzzzidzyfbmwqlxpjp` + chave publicável) ou `LocalDB` (se `SUPA` ficar vazio). Métodos: `load, signIn, signOut, checkNick, create, update, buy, addMatch, find, getProfile, friends, request, respond, unfriend, top`.
-- **Conta (`ACC`):** `uid, pid (ID de 8 números), nick, email, guest, look, eq {hat,face,body,back,feet}, inv [ids], cls, gold, gems, wins, losses, shots, hits, games`.
-- **Presença (`PS`, WebSocket `/ws?presence=1`):** mensagens `hello, pub, status {s: menu|lobby|game, room}, nick, find, online, friends, freq, fresp, unfriend, top, invite, ping`. O servidor avisa `fst` (status de amigo), `freqIn` (pedido novo), `fupd` (lista mudou) e `invite`.
+- **Interface única:** todo acesso a dados passa por `DB`: `SupaDB` (ligado; `SUPA` = projeto `zfqzzzidzyfbmwqlxpjp` + chave publicável) ou `LocalDB` (se `SUPA` ficar vazio). Métodos: `load, signIn, signOut, checkNick, create, update, buy, addMatch(win,shots,hits,ranked,rp), find, getProfile, friends, request, respond, unfriend, top` (por RP) e `ranks(uids)` → `{uid: {rp, pos, tot}}` (Supabase: RPC `rank_info`; local: presença `rk`).
+- **Conta (`ACC`):** `uid, pid (ID de 8 números), nick, email, guest, look, eq {hat,face,body,back,feet}, inv [ids], cls, gold, gems, wins, losses, shots, hits, games, rp` (pontos de ranking, começa em 100).
+- **Presença (`PS`, WebSocket `/ws?presence=1`):** mensagens `hello, pub, status {s: menu|lobby|game, room}, nick, find, online, friends, freq, fresp, unfriend, top, invite, ping`, `who` (todos online, com o perfil público), `rk {uids}` (posição no ranking, modo local), `ghist` (últimas 50 mensagens do chat global) e `gchat {s}` (chat global: só com `status = menu`, 1 mensagem a cada 10 s por conta, texto passado pelo filtro `cleanTxt`; erro `{e, wait}`). O servidor avisa `fst` (status de amigo), `freqIn` (pedido novo), `fupd` (lista mudou), `invite` e `gmsg {m: {uid,nick,pid,rp,s,ts}}` (mensagem nova do chat global, para todos).
 - **Na sala:** `hi` leva `eq, uid, pid`; a mensagem `eq` troca o equipamento; `go` leva `eq` e `uid` de cada jogador; `newGame` guarda `p.eq`. Toda skin vinda da rede passa por `cleanEq` (roupas e `VK`). No banco, `items.slot` aceita `vwar…vbal` e o gatilho `check_eq` aceita essas chaves; o `server.js` também guarda essas chaves no perfil público (`SLOTS`).
 - **Supabase:** `db/schema.sql` (testado num Postgres 16 local com um `auth` simulado). Cliente: supabase-js 2.105.4 (UMD pelo jsDelivr), `flowType:'implicit'` (o link do e-mail funciona em outro aparelho). `SupaDB.load` devolve a conta, ou `{uid, nick:''}` quando há sessão sem perfil (volta do link/Google): o início do jogo abre direto a escolha de apelido. O jogador só pode gravar `nick, look, weapon, guest` (ao criar) e `look, eq, weapon` (depois); o gatilho `check_eq` impede equipar item que não tem; ouro, gemas e estatísticas só mudam por `buy_item` ou `record_result` (só service_role). Testado com um Supabase simulado (falso `supabase-js` no navegador + servidor HTTP falso); falta o teste com o projeto real.
 - **Servidor com Supabase** (variáveis `SUPABASE_URL` e `SUPABASE_SECRET` no Render): `hello` leva `token` e o servidor confere em `/auth/v1/user` (cache de 5 min); `result {win,shots,hits}` grava via `/rest/v1/rpc/record_result` (+60 ouro vitória, +20 derrota; no máximo 1 a cada 30 s por jogador; tiros ≤ 80). Amigos para status e convites vêm de `friendships` (`loadFriends`, recarregado no `ping`). Nesse modo o `dev-store.json` não é gravado. Convidados (login anônimo) também se conectam à presença para gravar partidas.
 - **Ranking só sem bots:** o servidor guarda, a cada `go` do líder, `r.go = {uids, bots, done}`. No `result`, ele acha a sala pelo `status.room` do jogador: ranqueada = `bots === 0`, 2+ jogadores e o jogador na lista; um resultado por partida (`done`). Sem sala/partida: não ranqueada (+20 ouro, 1 a cada 30 s). `record_result(..., p_ranked)`: com `false` só soma ouro. No modo local, `recordMatch` calcula `ranked` pelo `G.pl` (nenhum `bot`).
+- **RP:** `rpCalc(w)` (no fim da partida, igual em todos os clientes) dá a cada jogador `{win, k, s, t}`: vitória pelo número de jogadores (`RPWIN`: 2 → 2, 4 → 4, 6 → 8; com bot → 1), `k` abates (+1), `s` suicídios (-2). Abate e suicídio vêm de `credit(p, drown)` dentro do `die`: `p.lh` = último que causou dano (`hurt`); afogado durante um tiro = quem atirou; afogado andando na própria vez = suicídio. No Supabase o servidor recalcula o RP no `result {win, shots, hits, kills, sui}` com o `r.go {n, bots}` da sala (abates limitados a n-1, suicídio a 1) e chama `record_result(..., p_rp)`, que devolve o RP novo. No modo local, `LocalDB.addMatch` soma `rp.t`.
+- **Patentes:** `RANKS` (21, com `min` de RP), `tierOf(rp, pos, tot)` (Águia exige `pos` nos 30% melhores; Mestre exige `pos` 1–3), `rankImg`/`rankCanvas` (emblemas desenhados em canvas, com cache), `RK`/`rkLoad(uids)` (cache de 30 s da posição de cada conta), `tierFor(uid, rp)`, `rankHelp()` (tabela no ranking).
+- **Chat global e online:** `browse.js` dentro do `index.html`: `chatClean` (mesmo filtro do servidor), `gOpen`, `gSend`, `renderGlog`, `loadOnline`/`renderOnline` (a cada 5 s com a aba aberta).
 - **Ainda falta:** o resultado é informado pelo próprio jogador (o servidor só confere quem é e limita os valores); convidado que cria conta começa uma conta nova (sem migrar o progresso).
 
 ## Limitações conhecidas

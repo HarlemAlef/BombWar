@@ -24,7 +24,7 @@ Para quem vai mexer no código (pessoa ou agente de IA): leia o **[AGENTS.md](AG
 - **Veículo inclinado:** o veículo acompanha o chão (até 45° para cima ou para baixo) e o cano mira dentro de uma faixa fixa em relação ao veículo. Numa subida a faixa sobe junto (e dá até para atirar para trás); numa descida ela desce. Na sua vez, um leque claro mostra a faixa. O medidor no canto de baixo mostra o chão (linha amarela), a faixa permitida, o ângulo real do tiro e o texto "chão +20°".
 - O painel de cada jogador mostra a **força, o ângulo e o vento do último tiro**, para ajudar a corrigir a mira.
 - O que você digita no chat aparece num **balão em cima do personagem**.
-- Os botões na tela para celular ficam em **⚙ Configurações**, no canto do menu e na lateral da tela durante a partida. O FOGO fica no canto de baixo à direita, para não tapar o mapa.
+- Os botões na tela para celular ficam em **⚙ Configurações**, no canto do menu e na lateral da tela durante a partida. O FOGO fica à direita, acima do chat e por cima de tudo, para não ser coberto pelo chat no celular.
 - **Câmera:** a partida começa mostrando o mapa todo. Com zoom, a câmera acompanha o tiro e quem está na vez até você arrastar. O **minimapa** (canto de cima, à direita) mostra o mapa inteiro e o pedaço que está na tela; toque nele para pular para um ponto. Aparece sempre no celular e, no computador, quando há zoom.
 - **Tela cheia:** em ⚙ Configurações. No celular, tocar na Arena já tenta entrar em tela cheia e deitar a tela. No iPhone o navegador não deixa: use **Compartilhar → Adicionar à Tela de Início** e abra pelo ícone do BombWar (o jogo abre em tela cheia).
 - **Login:** atrás da tela de entrar roda uma batalha de demonstração (só visual). Depois do login, o menu é uma **cidade** no estilo DDTank.
@@ -36,24 +36,36 @@ Cada prédio é um botão, com luz quando o mouse passa por cima: **Inventário*
 ## Modos
 
 - **Arena** (antigo "Online Servidor"): lista de salas abertas, atualizada a cada 3 segundos. Você pode criar uma sala (nome e senha opcional) ou entrar com o código. Para jogar contra bots, crie uma sala e use **+ Bot**.
+  - Ao lado das salas ficam duas abas: **💬 Chat global** e **🟢 Online**.
+  - **Chat global:** só na lista de salas (nem dentro das salas, nem na partida). Palavrões viram `***` (o servidor filtra) e cada jogador manda **uma mensagem a cada 10 segundos**. Clicar no nome abre o perfil.
+  - **Online:** todos os jogadores conectados, com patente, pontos e onde estão (menu, sala ou partida). Clique para ver o perfil ou use **+ Amigo**.
 - **Jogar Offline:** desativado no menu (o código continua no jogo, função `offLobby`).
-  - Na sala, todos precisam clicar em **Estou pronto** antes do líder 👑 iniciar.
-  - O líder pode trocar o formato, o mapa, o horário, o nome e a senha da sala, e completar vagas com bots.
-  - **👁 Assistir** tira você da vaga e você fica na plateia (continua assim depois da partida); para voltar, use **Entrar aqui** numa vaga livre.
-  - O líder pode **expulsar ⛔** um jogador na sala (fora da partida). O servidor fecha a conexão dele, que não consegue voltar àquela sala por 10 minutos.
-  - Se o líder sair, a liderança passa para o jogador mais antigo da sala, mesmo no meio da partida.
-  - Quem entra com a partida em andamento fica assistindo e joga na próxima.
+
+### A sala
+
+A sala tem o **Time Azul** à esquerda e o **Time Rosa** à direita, com até 3 vagas de cada lado. Cada vaga mostra o personagem com o veículo e a skin escolhidos, a **patente** e os pontos de ranking, o veículo e se a pessoa está pronta. No meio ficam o mapa, as regras e os botões:
+
+- **INICIAR** (líder) ou **ESTOU PRONTO** (os outros). O líder não precisa marcar pronto.
+- **Veículo:** abre a escolha do veículo, com a skin que você tem equipada. A escolha fica salva na conta e já vem selecionada nas próximas salas (quem nunca escolheu começa com o **Tanque Bolota**).
+- **Trajes:** abre o inventário (roupas e skins), sem sair da sala.
+- **Lado:** troca de time, se houver vaga do outro lado (não aparece no sorteio nem no todos contra todos).
+- **Assistir / Jogar:** sai da vaga e vai para a plateia, ou volta para uma vaga livre.
+- **⚙ Configurações da partida:** o líder escolhe o **mapa**, o **horário**, o **modo de jogo** (Times ou **Todos contra todos**), os **jogadores** (1 vs 1, 2 vs 2 ou 3 vs 3), os **times** (escolher lados ou **sorteio**), o nome e a senha da sala. Os outros jogadores só veem as regras.
+- **Sorteio:** os times são formados ao acaso **quando o líder inicia**, com todos que estão nas vagas, bots também.
+- **Todos contra todos:** com 2, 4 ou 6 jogadores; cada um por si e vence o último que ficar vivo.
+- O líder completa vagas com **+ Bot** (e troca a dificuldade), e pode **expulsar ⛔** um jogador (o servidor não deixa ele voltar àquela sala por 10 minutos).
+- Se o líder sair, a liderança passa para o jogador mais antigo da sala, mesmo no meio da partida. Quem entra com a partida em andamento fica assistindo e joga na próxima.
 - **P2P (PeerJS):** o código continua no projeto, mas o botão foi retirado do menu.
 
 ## Contas, inventário, loja e amigos
 
 - **Login:** Google, e-mail ou convidado. Na criação da conta você escolhe um **apelido único** (3 a 14 letras ou números) e o personagem básico, sem skins. Cada conta recebe um **ID público de 8 números**.
 - **Saldo inicial (versão de testes):** 1.000 de ouro e **10.000 gemas**. Ouro também se ganha jogando: +60 por vitória e +20 por derrota; partida com bots dá +20 de participação.
-- **Estatísticas:** vitórias, derrotas, % de vitórias, precisão e partidas. **Só contam partidas entre jogadores**: se tiver qualquer bot na partida, ela não entra nas estatísticas nem no ranking.
+- **Estatísticas:** vitórias, derrotas, % de vitórias, precisão e partidas. **Só contam partidas entre jogadores**: se tiver qualquer bot na partida, ela não entra nessas estatísticas (mas dá pontos de ranking, veja abaixo).
 - **Loja:** 50 skins de personagem em 5 abas (Chapéu, Rosto, Roupa, Costas e Calçado) e **25 skins de veículo** na aba **Veículos** (5 por veículo), com 4 raridades (Comum e Raro custam ouro; Épico e Lendário custam gemas). Dá para buscar pelo nome, filtrar por raridade, ordenar por preço, esconder o que já tem e **provar** antes de comprar. No provador, a skin de veículo aparece com o tiro dela voando.
 - **Inventário:** grade com os seus itens, no estilo do DDTank. **Arraste** um item até o espaço do personagem para equipar (ou dê dois cliques), e arraste de volta para a grade para tirar. Funciona com o dedo no celular. Na aba **Veículos**, clique na skin e em **Equipar**: cada veículo guarda a sua própria skin.
 - **Amigos:** busque pelo ID ou apelido, ou clique no nome de alguém na sala para ver o perfil (skins e estatísticas) e mandar pedido. A lista mostra quem está **online**, **na sala** ou **em partida**. Na sala, o botão **Convidar amigos** manda um convite com o código.
-- **Ranking (Hall da Fama):** os 50 jogadores com mais vitórias em partidas sem bots.
+- **Ranking (Hall da Fama):** os 50 jogadores com mais **pontos de ranking (RP)**, com a patente de cada um. O link "Como funcionam as patentes" mostra a tabela.
 - **Convidados** jogam normalmente, mas não compram nem adicionam amigos. Ao criar conta, o progresso do convidado é transferido.
 
 ### Banco de dados (Supabase)
@@ -70,6 +82,49 @@ O jogo está ligado ao projeto Supabase `zfqzzzidzyfbmwqlxpjp`. Login com Google
 Sem essas duas variáveis o servidor volta ao **modo de desenvolvimento** (amigos e ranking em `dev-store.json`). Para o jogo inteiro voltar ao modo de desenvolvimento, deixe `SUPA` vazio no `index.html`.
 
 A chave **secreta** (`sb_secret_...`, antiga service_role) vai só nas variáveis de ambiente do Render, nunca no código, no GitHub ou em conversas. Se ela vazar, apague e crie outra em **Project Settings → API Keys**.
+
+## Ranking (RP) e patentes
+
+Todo jogador começa com **100 RP** (pontos de ranking). No fim de cada partida o jogo soma os pontos de cada um e mostra o total novo, com a patente.
+
+| Ação | RP |
+|---|---|
+| Vitória 1v1 | +2 |
+| Vitória 2v2 | +4 |
+| Vitória 3v3 | +8 |
+| Vitória no todos contra todos | pelo número de jogadores: 2 = +2, 4 = +4, 6 = +8 |
+| Vitória com **bot** na partida | +1 (os outros pontos continuam valendo) |
+| Abate (dar o último dano ou derrubar o inimigo na água) | +1 |
+| Suicídio (morrer pelo próprio tiro ou cair na água andando) | -2 |
+
+São **21 patentes**, cada uma com seu emblema (desenhado pelo jogo):
+
+| Patentes | RP mínimo |
+|---|---|
+| Uma Estrela de Bronze, Prata e Ouro | 100 (início), 200, 300 |
+| Duas Estrelas de Bronze, Prata e Ouro | 400, 600, 800 |
+| Três Estrelas de Bronze, Prata e Ouro | 1.000, 1.200, 1.400 |
+| Dragão de Bronze, Prata e Ouro | 1.600, 2.100, 2.600 |
+| Águia de Bronze, Prata e Ouro | 3.100, 3.600, 4.100 |
+| Águia Imperial de Bronze, Prata e Ouro | 4.600, 5.100, 5.600 |
+| Mestre de Bronze, Prata e Ouro | 6.100, 6.600, 7.100 |
+
+- **Águia e Águia Imperial:** além dos pontos, só para quem está entre os **30% melhores** do servidor. Quem tem os pontos mas não está nesse grupo fica em Dragão de Ouro.
+- **Mestre:** só os **3 primeiros** do servidor (1º Ouro, 2º Prata, 3º Bronze), e com os pontos mínimos. Os outros ficam em Águia Imperial, mesmo com mais pontos.
+- A patente aparece no cartão do jogador, nas vagas da sala, no chat global, na lista de online, no perfil, no ranking e no fim da partida.
+
+## Destaques de tiro
+
+Quando um tiro se destaca, aparece um aviso na lateral da tela de **todos os jogadores**, com um som curto:
+
+| Destaque | Quando |
+|---|---|
+| ★ Tiro excelente | 300 ou mais de dano nos inimigos num tiro só (um acerto cheio normal dá de 170 a 263; com power-up passa de 300) |
+| ↶ Tiro de costas | acertou um inimigo com o tiro saindo para trás (ângulo real acima de 90°) |
+| ⇡ Tiro alto | o tiro passou 200 px acima do topo do mapa e acertou alguém |
+| ✦ Dois coelhos | dois ou mais abates com o mesmo tiro |
+
+Os bots também procuram tiros de costas (virados para o outro lado) quando não acham um bom tiro de frente. O tiro de costas depende da faixa de mira do veículo e da inclinação do chão: no plano, só o Carrinho de Obra (até 120°) e o Kart Arcano (até 100°) passam da vertical.
 
 ## Personagens e veículos
 
@@ -203,3 +258,4 @@ Do mais antigo para o mais recente:
 17. Menu em forma de cidade (Inventário, Loja, Arena, Hall da Fama, Amigos) com luzes e fogos; cartão do jogador na sala com acesso ao inventário; Jogar Offline desativado (bots na Arena); ranking só com partidas sem bots; Morteiro exige tiro mais alto; botões de toque menores; tela cheia; zoom com pinça/roda, câmera que acompanha o tiro e minimapa.
 18. Balanceamento pelo relatório de 1.000 partidas (Bola Quicante, Morteiro e Rifle mais fortes/fracos, Rifle +5% de dano, Chuva de bombas 5×70 sem Dano x2, Tiro triplo 65%; depois da 2ª rodada de 1.000 partidas, queimadura do Cajado 45 → 40); power-ups com uma carga; Morteiro conta como um projétil para power-ups; bots usam o Avião; posições e primeiro turno sorteados; pódio com os personagens no fim da partida; botão Assistir e expulsão pelo líder na sala.
 19. **Veículos** no lugar das armas (Tanque Bolota, Jipe Mira, Kart Arcano, Carrinho de Obra e Monstro Mola), com o personagem pilotando; veículo inclina com o terreno (até 45°) e mira numa faixa fixa em relação ao veículo (dá para atirar para trás); medidor e leque de mira novos; projéteis próprios (míssil, bala .50, bola de fogo com rastro, bolas de ferro, bola quicante); 25 skins de veículo na Loja (5 por veículo, com raridade), que trocam formato, animações, projétil, rastro, explosão e cor da cratera; área de acerto um pouco maior.
+20. Sala nova (times nas laterais, vagas com veículo e patente, mapa e regras no meio) com **Configurações da partida**, botões **Veículo**, **Trajes**, **Lado** e **Assistir**; **3v3**, **todos contra todos** e **times sorteados**; chat global com filtro e espera de 10 s, e lista de jogadores online na lista de salas; **ranking por RP** com 21 patentes; **destaques de tiro** (excelente, de costas, alto, dois coelhos); bots atirando de costas; botão FOGO por cima do chat no celular; correção do pódio do fim da partida (o desenho não era limpo a cada quadro).

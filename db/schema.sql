@@ -22,9 +22,13 @@ create table if not exists public.profiles (
   shots       int not null default 0,
   hits        int not null default 0,
   games       int not null default 0,
+  rp          int not null default 100 check (rp >= 0),          -- pontos de ranking (RP)
   created_at  timestamptz not null default now()
 );
 create unique index if not exists profiles_nick_lower on public.profiles (lower(nick));
+-- banco criado antes do ranking por RP: cria a coluna
+alter table public.profiles add column if not exists rp int not null default 100;
+create index if not exists profiles_rp on public.profiles (rp desc) where not guest;
 
 create table if not exists public.items (
   id          text primary key,
@@ -83,7 +87,7 @@ create table if not exists public.wallet_log (         -- histórico de cada moe
 
 -- perfil público (o que qualquer jogador pode ver de outro)
 create or replace view public.public_profiles as
-  select id as uid, pid, nick, look, eq, weapon, wins, losses, shots, hits, games from public.profiles where not guest;
+  select id as uid, pid, nick, look, eq, weapon, wins, losses, shots, hits, games, rp from public.profiles where not guest;
 
 -- ---------- permissões e travas (RLS) ----------
 alter table public.profiles        enable row level security;
@@ -162,13 +166,14 @@ begin
   return json_build_object('gold', pr.gold, 'gems', pr.gems);
 end $$;
 
+drop function if exists public.my_friends();
 create or replace function public.my_friends() returns table (uid uuid, pid text, nick text, look text, eq jsonb, weapon text,
-  wins int, losses int, shots int, hits int, games int, rel text) language sql security definer set search_path = public as $$
-  select p.id, p.pid, p.nick, p.look, p.eq, p.weapon, p.wins, p.losses, p.shots, p.hits, p.games, 'friend' from friendships f join profiles p on p.id = f.b where f.a = auth.uid()
+  wins int, losses int, shots int, hits int, games int, rp int, rel text) language sql security definer set search_path = public as $$
+  select p.id, p.pid, p.nick, p.look, p.eq, p.weapon, p.wins, p.losses, p.shots, p.hits, p.games, p.rp, 'friend' from friendships f join profiles p on p.id = f.b where f.a = auth.uid()
   union all
-  select p.id, p.pid, p.nick, p.look, p.eq, p.weapon, p.wins, p.losses, p.shots, p.hits, p.games, 'in' from friend_requests r join profiles p on p.id = r.from_id where r.to_id = auth.uid()
+  select p.id, p.pid, p.nick, p.look, p.eq, p.weapon, p.wins, p.losses, p.shots, p.hits, p.games, p.rp, 'in' from friend_requests r join profiles p on p.id = r.from_id where r.to_id = auth.uid()
   union all
-  select p.id, p.pid, p.nick, p.look, p.eq, p.weapon, p.wins, p.losses, p.shots, p.hits, p.games, 'out' from friend_requests r join profiles p on p.id = r.to_id where r.from_id = auth.uid();
+  select p.id, p.pid, p.nick, p.look, p.eq, p.weapon, p.wins, p.losses, p.shots, p.hits, p.games, p.rp, 'out' from friend_requests r join profiles p on p.id = r.to_id where r.from_id = auth.uid();
 $$;
 
 create or replace function public.friend_request(p_to uuid) returns void language plpgsql security definer set search_path = public as $$
@@ -198,11 +203,14 @@ create or replace function public.friend_remove(p_uid uuid) returns void languag
 $$;
 
 -- resultado de partida: só o servidor do jogo (chave secreta / service_role) pode chamar.
--- p_ranked = partida só com jogadores (sem bots): conta vitória, derrota, precisão e ranking.
+-- p_ranked = partida só com jogadores (sem bots): conta vitória, derrota, precisão e estatísticas.
 -- Partida com bots (p_ranked = false): só dá o ouro, sem mexer nas estatísticas.
+-- p_rp = pontos de ranking da partida (calculados pelo servidor: vitória pelo formato, abates, suicídio); vale nas duas. Devolve o RP novo.
 drop function if exists public.record_result(uuid, boolean, int, int, int);
-create or replace function public.record_result(p_user uuid, p_win boolean, p_shots int, p_hits int, p_gold int, p_ranked boolean default true) returns void
+drop function if exists public.record_result(uuid, boolean, int, int, int, boolean);
+create or replace function public.record_result(p_user uuid, p_win boolean, p_shots int, p_hits int, p_gold int, p_ranked boolean default true, p_rp int default 0) returns int
 language plpgsql security definer set search_path = public as $$
+declare v int;
 begin
   if p_ranked then
     update profiles set games = games + 1, wins = wins + (case when p_win then 1 else 0 end), losses = losses + (case when p_win then 0 else 1 end),
@@ -210,10 +218,22 @@ begin
   else
     update profiles set gold = gold + p_gold where id = p_user;
   end if;
+  update profiles set rp = greatest(0, rp + coalesce(p_rp, 0)) where id = p_user returning rp into v;
   insert into wallet_log(user_id, gold, reason) values (p_user, p_gold, case when not p_ranked then 'partida com bots' when p_win then 'vitória' else 'derrota' end);
+  return v;
 end $$;
-revoke execute on function public.record_result(uuid, boolean, int, int, int, boolean) from public, anon, authenticated;
-grant execute on function public.record_result(uuid, boolean, int, int, int, boolean) to service_role;
+revoke execute on function public.record_result(uuid, boolean, int, int, int, boolean, int) from public, anon, authenticated;
+grant execute on function public.record_result(uuid, boolean, int, int, int, boolean, int) to service_role;
+
+-- posição no ranking (para as patentes Águia = 30% melhores e Mestre = 3 primeiros). Convidados não entram.
+create or replace function public.rank_info(p_uids uuid[]) returns table (uid uuid, rp int, pos int, total int)
+language sql stable security definer set search_path = public as $$
+  select p.id, p.rp,
+    (select count(*)::int + 1 from profiles q where not q.guest and q.rp > p.rp),
+    (select count(*)::int from profiles where not guest)
+  from profiles p where p.id = any(p_uids) and not p.guest;
+$$;
+grant execute on function public.rank_info(uuid[]) to anon, authenticated;
 
 grant execute on function public.nick_available(text), public.buy_item(text), public.my_friends(),
   public.friend_request(uuid), public.friend_respond(uuid, boolean), public.friend_remove(uuid) to authenticated;

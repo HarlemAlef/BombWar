@@ -1,9 +1,9 @@
 // Servidor do BombWar: entrega o index.html, lista as salas abertas e repassa mensagens entre os jogadores.
 // Cada sala tem um líder; se o líder sair, a liderança passa para o jogador mais antigo da sala.
-// Até 8 conexões por sala (4 jogadores + espectadores). Salas podem ter senha.
+// Até 10 conexões por sala (6 jogadores + espectadores). Salas podem ter senha.
 const http = require('http'), fs = require('fs'), { WebSocketServer } = require('ws');
 
-const rooms = new Map(), MAX = 8;
+const rooms = new Map(), MAX = 10;
 const str = (v, n) => String(v == null ? '' : v).replace(/[\u0000-\u001f\u007f<>]/g, '').trim().slice(0, n);
 const open = c => c.ws.readyState === 1;
 
@@ -54,7 +54,7 @@ function cleanPub(p, uid) {
   p = p && typeof p === 'object' ? p : {};
   const eq = {}; SLOTS.forEach(k => { const v = p.eq && p.eq[k]; eq[k] = v ? str(v, 16) : null; });
   return { uid, pid: str(p.pid, 8).replace(/\D/g, ''), nick: str(p.nick, 14) || 'Jogador', look: str(p.look, 4) || 'sol', eq, cls: str(p.cls, 4) || 'war',
-    wins: int(p.wins), losses: int(p.losses), shots: int(p.shots), hits: int(p.hits), games: int(p.games) };
+    wins: int(p.wins), losses: int(p.losses), shots: int(p.shots), hits: int(p.hits), games: int(p.games), rp: p.rp == null ? 100 : int(p.rp) };
 }
 function pubOf(uid) { const p = store.profiles[uid]; if (!p) return null; const o = online.get(uid); return Object.assign({}, p, { on: o ? 1 : 0, st: o ? o.st : 'off', room: o ? o.room : '' }); }
 function sendTo(uid, o) { const c = online.get(uid); if (c && c.ws.readyState === 1) c.ws.send(JSON.stringify(o)); }
@@ -62,6 +62,20 @@ const fr = uid => sbOn ? (sbFr.get(uid) || []) : (store.friends[uid] || (store.f
 const rq = uid => store.reqs[uid] || (store.reqs[uid] = []); // pedidos recebidos por uid
 function tellFriends(uid) { const o = online.get(uid); fr(uid).forEach(f => sendTo(f, { t: 'fst', uid, on: o ? 1 : 0, st: o ? o.st : 'off', room: o ? o.room : '' })); }
 function nickTaken(nick, uid) { const n = nick.toLowerCase(); return Object.values(store.profiles).some(p => p.uid !== uid && p.nick.toLowerCase() === n); }
+// ===== chat global (só na lista de salas) =====
+// Filtro de palavrões: compara sem acento, sem letras repetidas e com números no lugar de letras; troca a palavra por asteriscos.
+const BADW = ['porra','caralho','caralha','krl','crl','buceta','boceta','xoxota','xereca','puta','puto','putas','putos','putinha','puteiro','pqp','fdp','vsf','vtnc','tnc','tmnc','merda','merdas','bosta',
+  'foda','fodase','foder','fodido','fodida','fudido','fuder','arrombado','arrombada','cuzao','cuzinho','cu','viado','viadinho','bicha','sapatao','traveco','corno','cornos','vagabunda','vagabundo','vadia','piranha','rapariga',
+  'punheta','punheteiro','boquete','escroto','escrota','retardado','retardada','mongoloide','otario','otaria','babaca','imbecil','cacete','pau','rola','pinto','piroca','pica','baitola','desgracado','desgracada','macaco','macaca'];
+const BADS = ['caralh','arromb','punhet','vagabund','escrot','retardad','fodid','fudid','desgrac','buc3t','put4'];
+const norm = w => w.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/0/g, 'o').replace(/1/g, 'i').replace(/3/g, 'e').replace(/4|@/g, 'a').replace(/5|\$/g, 's').replace(/7/g, 't').replace(/[^a-z]/g, '').replace(/(.)\1+/g, '$1');
+const BADN = new Set(BADW.map(norm)), BADSN = BADS.map(norm);
+const cleanTxt = t => t.replace(/[\p{L}\p{N}@$]+/gu, w => { const n = norm(w); return n && (BADN.has(n) || BADSN.some(b => n.startsWith(b))) ? '*'.repeat(w.length) : w; });
+const gHist = [], gLast = new Map(); // últimas 50 mensagens; hora da última mensagem de cada jogador (10 s entre mensagens)
+function castAll(o) { const t = JSON.stringify(o); online.forEach(c => { if (c.ws.readyState === 1) c.ws.send(t); }); }
+// posição no ranking (modo de desenvolvimento; no Supabase o jogo pergunta direto ao banco com rank_info)
+function rankMap(uids) { const all = Object.values(store.profiles).map(p => p.rp == null ? 100 : p.rp), tot = all.length, m = {};
+  uids.forEach(u => { const p = store.profiles[u]; if (!p) return; const rp = p.rp == null ? 100 : p.rp; m[u] = { rp, pos: 1 + all.filter(v => v > rp).length, tot }; }); return m; }
 function presence(ws) {
   let me = null;
   ws.on('message', d => {
@@ -98,8 +112,11 @@ function presence(ws) {
         lastRes.set(me, now);
         const ranked = inGo && gm.bots === 0 && gm.uids.length >= 2;
         const shots = Math.max(0, Math.min(80, o.shots | 0)), hits = Math.max(0, Math.min(shots, o.hits | 0)), win = !!o.win, gold = ranked ? (win ? 60 : 20) : 20;
-        sbFetch('/rest/v1/rpc/record_result', { method: 'POST', body: JSON.stringify({ p_user: me, p_win: win, p_shots: shots, p_hits: hits, p_gold: gold, p_ranked: ranked }) })
-          .then(() => reply({ t: 'result', ok: 1, gold, ranked: ranked ? 1 : 0 }))
+        // RP: vitória 1v1 = 2, 2v2 = 4, 3v3 = 8 (todos contra todos pelo nº de jogadores); com bot a vitória vale 1. Abate +1, suicídio -2.
+        const n = inGo ? gm.n || 2 : 2, kills = Math.max(0, Math.min(n - 1, o.kills | 0)), sui = Math.max(0, Math.min(1, o.sui | 0));
+        const drp = inGo ? (win ? (gm.bots > 0 ? 1 : ({ 2: 2, 4: 4, 6: 8 })[n] || 2) : 0) + kills - 2 * sui : 0;
+        sbFetch('/rest/v1/rpc/record_result', { method: 'POST', body: JSON.stringify({ p_user: me, p_win: win, p_shots: shots, p_hits: hits, p_gold: gold, p_ranked: ranked, p_rp: drp }) })
+          .then(rp => reply({ t: 'result', ok: 1, gold, ranked: ranked ? 1 : 0, rp: typeof rp === 'number' ? rp : null, drp }))
           .catch(e => { console.log('record_result', e.message); reply({ t: 'result', e: 'falhou' }); });
         return;
       }
@@ -128,9 +145,19 @@ function presence(ws) {
         save(); sendTo(from, { t: 'fupd' }); return reply({ t: 'fresp', ok: 1 });
       }
       case 'unfriend': { const u = str(o.uid, 40); store.friends[me] = fr(me).filter(x => x !== u); store.friends[u] = fr(u).filter(x => x !== me); save(); sendTo(u, { t: 'fupd' }); return reply({ t: 'unfriend', ok: 1 }); }
-      case 'top': { const list = Object.values(store.profiles).filter(p => p.games > 0)
-          .sort((a, b) => (b.wins - a.wins) || (b.wins / (b.games || 1) - a.wins / (a.games || 1))).slice(0, 50).map(p => pubOf(p.uid));
+      case 'top': { const list = Object.values(store.profiles).sort((a, b) => ((b.rp ?? 100) - (a.rp ?? 100)) || (b.wins - a.wins)).slice(0, 50).map(p => pubOf(p.uid));
         return reply({ t: 'top', list }); }
+      case 'rk': return reply({ t: 'rk', map: rankMap((Array.isArray(o.uids) ? o.uids : []).slice(0, 200).map(u => str(u, 40))) });
+      case 'who': { const list = []; online.forEach((c, uid) => { const p = pubOf(uid); if (p) list.push(p); }); return reply({ t: 'who', list: list.slice(0, 300) }); }
+      case 'ghist': return reply({ t: 'ghist', list: gHist });
+      case 'gchat': { // chat global: só fora das salas e das partidas; 1 mensagem a cada 10 s por jogador
+        const c = online.get(me); if (!c || c.st !== 'menu') return reply({ t: 'gchat', e: 'O chat global só funciona na lista de salas.' });
+        const now = Date.now(), wait = 10e3 - (now - (gLast.get(me) || 0)); if (wait > 0) return reply({ t: 'gchat', e: 'Aguarde ' + Math.ceil(wait / 1000) + ' s para mandar outra mensagem.', wait });
+        const txt = cleanTxt(str(o.s, 120)); if (!txt) return reply({ t: 'gchat', e: 'Mensagem vazia.' });
+        gLast.set(me, now); const p = store.profiles[me] || {};
+        const m = { uid: me, nick: p.nick || 'Jogador', pid: p.pid || '', rp: p.rp == null ? 100 : p.rp, s: txt, ts: now };
+        gHist.push(m); if (gHist.length > 50) gHist.shift(); castAll({ t: 'gmsg', m }); return reply({ t: 'gchat', ok: 1 });
+      }
       case 'invite': { const to = str(o.to, 40); if (fr(me).includes(to)) sendTo(to, { t: 'invite', from: pubOf(me), code: str(o.code, 12) }); return; }
       case 'ping': { const to = str(o.to, 40); if (sbOn) { loadFriends(me); loadFriends(to); } sendTo(to, { t: 'fupd' }); return; }
     }
@@ -144,7 +171,7 @@ function roomList() {
     r.cl = r.cl.filter(open);
     if (!r.meta || !r.cl.length) return;
     const m = r.meta;
-    out.push({ code, name: m.name, lead: m.lead, fmt: m.fmt, n: m.n, max: m.max, ig: m.ig, lock: !!r.pw, con: r.cl.length, t: r.t });
+    out.push({ code, name: m.name, lead: m.lead, fmt: m.fmt, ffa: m.ffa, n: m.n, max: m.max, ig: m.ig, lock: !!r.pw, con: r.cl.length, t: r.t });
   });
   out.sort((a, b) => (a.ig - b.ig) || (b.t - a.t));
   return out.slice(0, 60);
@@ -207,13 +234,13 @@ wss.on('connection', (ws, req) => {
     if (o.t === 'meta' || o.t === 'pw') { // informações da sala: só o líder atual pode mudar
       if (cid !== r.host) return;
       if (o.t === 'pw') r.pw = str(o.pw, 20);
-      else r.meta = { name: str(o.name, 30) || 'Sala', lead: str(o.lead, 14), fmt: o.fmt === '2v2' ? '2v2' : '1v1',
-        n: Math.max(0, Math.min(4, o.n | 0)), max: o.max === 4 ? 4 : 2, ig: o.ig ? 1 : 0 };
+      else r.meta = { name: str(o.name, 30) || 'Sala', lead: str(o.lead, 14), fmt: ['1v1', '2v2', '3v3'].includes(o.fmt) ? o.fmt : '1v1', ffa: o.ffa ? 1 : 0,
+        n: Math.max(0, Math.min(6, o.n | 0)), max: [2, 4, 6].includes(o.max) ? o.max : 2, ig: o.ig ? 1 : 0 };
       return;
     }
     if (o.t === 'go' && cid === r.host && Array.isArray(o.players)) { // guarda quem está na partida (para o ranking só contar partidas sem bots)
       const ps = o.players.slice(0, 8);
-      r.go = { uids: ps.filter(p => p && !p.bot && p.uid).map(p => str(p.uid, 40)), bots: ps.filter(p => p && p.bot).length, done: new Set() };
+      r.go = { uids: ps.filter(p => p && !p.bot && p.uid).map(p => str(p.uid, 40)), bots: ps.filter(p => p && p.bot).length, n: ps.length, ffa: !!o.ffa, done: new Set() };
     }
     o.from = cid; // o servidor carimba quem enviou
     cast(o);
