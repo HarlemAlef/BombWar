@@ -18,6 +18,7 @@ Para quem vai mexer no código (pessoa ou agente de IA): leia o **[AGENTS.md](AG
 | Zoom da câmera | roda do mouse; arrastar move; duplo clique volta | pinça com 2 dedos; arrastar move; toque duplo aproxima/volta; toque no minimapa |
 | Música / sons | **M** / **N** | ⚙ Configurações |
 
+- **Início:** as posições e a distância entre os jogadores são sorteadas a cada partida (os times podem se misturar, sem deixar ninguém sozinho contra dois), e **quem começa também é sorteado**.
 - Turnos de **20 segundos**. Se o tempo acabar enquanto você carrega a força, o tiro sai sozinho.
 - Na vez do outro jogador, você não consegue fazer nada.
 - O painel de cada jogador mostra a **força, o ângulo e o vento do último tiro**, para ajudar a corrigir a mira.
@@ -37,6 +38,8 @@ Cada prédio é um botão, com luz quando o mouse passa por cima: **Inventário*
 - **Jogar Offline:** desativado no menu (o código continua no jogo, função `offLobby`).
   - Na sala, todos precisam clicar em **Estou pronto** antes do líder 👑 iniciar.
   - O líder pode trocar o formato, o mapa, o horário, o nome e a senha da sala, e completar vagas com bots.
+  - **👁 Assistir** tira você da vaga e você fica na plateia (continua assim depois da partida); para voltar, use **Entrar aqui** numa vaga livre.
+  - O líder pode **expulsar ⛔** um jogador na sala (fora da partida). O servidor fecha a conexão dele, que não consegue voltar àquela sala por 10 minutos.
   - Se o líder sair, a liderança passa para o jogador mais antigo da sala, mesmo no meio da partida.
   - Quem entra com a partida em andamento fica assistindo e joga na próxima.
 - **P2P (PeerJS):** o código continua no projeto, mas o botão foi retirado do menu.
@@ -71,28 +74,30 @@ A chave **secreta** (`sb_secret_...`, antiga service_role) vai só nas variávei
 
 Todo mundo joga com o **mesmo personagem padrão** (camiseta azul, short preto e cabelo curto). A cor do time aparece na faixa do ombro, no nome e na barra de vida, e a personalização é feita com as skins da Loja. Cada jogador escolhe só a **arma**, que define o tiro. Todos têm **1000 de vida**.
 
-| Arma | Como é |
-|---|---|
-| Canhão Pesado | tiro forte e confiável, área de dano grande e cratera pequena |
-| Rifle de Precisão | muito dano, tiro rápido e trajetória plana |
-| Cajado Arcano | queima o alvo por 2 turnos |
-| Morteiro | duas bolas que se cruzam na saída, se abrem bastante (até 140 px) e só se juntam depois de uns 2,5 s de voo; cada uma tem 60% do dano do Canhão (as duas juntas, 120%). Só tiros bem altos acertam as duas |
-| Bola Quicante | quica uma vez no chão (mais forte quanto mais alto vier) e explode no segundo toque; acerto direto explode na hora |
+| Arma | Dano | Raio | Como é |
+|---|---|---|---|
+| Canhão Pesado | 215 | 66 | tiro forte e confiável, área de dano grande e cratera pequena |
+| Rifle de Precisão | 263 | 40 | muito dano, tiro rápido e trajetória plana |
+| Cajado Arcano | 170 + queima 40 por 2 turnos | 44 | queima o alvo |
+| Morteiro | 118 por bola | 54 | duas bolas que se cruzam na saída, se abrem bastante (até 140 px) e só se juntam depois de uns 2,5 s de voo. Só tiros bem altos acertam as duas |
+| Bola Quicante | 230 | 58 | quica uma vez no chão (mais forte quanto mais alto vier) e explode no segundo toque; acerto direto explode na hora |
+
+Valores ajustados depois do teste de 1.000 partidas entre bots (relatório de balanceamento de 22/10/2026).
 
 
 ## Power-ups
 
-Depois de usado, cada power-up recarrega em **5 rodadas**. A **cura recarrega em 10**.
+Cada power-up tem **uma carga só** (não acumula). Depois de usado, recarrega em **5 rodadas**; a **cura recarrega em 10**. O Morteiro conta como **um** projétil para os power-ups: a Chuva de bombas cai uma vez só, e a Bomba pesada dá metade do bônus (+15% de dano, raio 1,35×) a cada uma das duas bolas.
 
 | Tecla | Power-up | Efeito |
 |---|---|---|
 | 1 | Cura | +200 de vida na hora |
 | 2 | Dano x2 | dobra o dano do próximo tiro (combina com os outros) |
 | 3 | Tiro duplo | dois disparos seguidos, 70% do dano cada |
-| 4 | Tiro triplo | três projéteis girando em espiral, 55% do dano cada |
+| 4 | Tiro triplo | três projéteis girando em espiral, 65% do dano cada |
 | 5 | Bomba pesada | cratera 1,7× maior e +30% de dano |
-| 6 | Chuva de bombas | 5 bombas caem do céu depois do impacto |
-| 7 | Avião | você é teletransportado para onde o avião cair (sem dano) |
+| 6 | Chuva de bombas | 5 bombas de 70 caem do céu depois do impacto (o Dano x2 não vale para elas) |
+| 7 | Avião | você é teletransportado para onde o avião cair (sem dano). Os bots usam quando estão num buraco ou sem nenhum tiro bom |
 
 ## Mapas, horários e clima
 
@@ -184,3 +189,4 @@ Do mais antigo para o mais recente:
 15. O jogo passou a se chamar **BombWar**: logo nova e batalha de demonstração animada atrás do login e dos menus.
 16. Supabase ligado: contas, loja, amigos e ranking no banco; o servidor confere o login e grava o resultado das partidas.
 17. Menu em forma de cidade (Inventário, Loja, Arena, Hall da Fama, Amigos) com luzes e fogos; cartão do jogador na sala com acesso ao inventário; Jogar Offline desativado (bots na Arena); ranking só com partidas sem bots; Morteiro exige tiro mais alto; botões de toque menores; tela cheia; zoom com pinça/roda, câmera que acompanha o tiro e minimapa.
+18. Balanceamento pelo relatório de 1.000 partidas (Bola Quicante, Morteiro e Rifle mais fortes/fracos, Rifle +5% de dano, Chuva de bombas 5×70 sem Dano x2, Tiro triplo 65%; depois da 2ª rodada de 1.000 partidas, queimadura do Cajado 45 → 40); power-ups com uma carga; Morteiro conta como um projétil para power-ups; bots usam o Avião; posições e primeiro turno sorteados; pódio com os personagens no fim da partida; botão Assistir e expulsão pelo líder na sala.

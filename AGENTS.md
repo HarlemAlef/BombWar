@@ -20,13 +20,13 @@ grep -n "^function nomeDaFuncao" index.html
 
 | Seção (marcador `/* === ... */`) | O que tem |
 |---|---|
-| `constantes` | `W,H` (mundo 1600×900), `TW,TH` (máscara 800×450, 2 px por célula), `UW,UH` (interface 1280×720), `WATER`, `VMAX`, `WK` (vento), `TURN=20`, `FUEL`. Também `CL` (**armas**; a chave continua se chamando `cls` no código e na rede; `st` = barras do menu; `rad` = área de dano, `cr` = tamanho da cratera quando é diferente; `bal` = Bola Quicante; `pair` = Morteiro, duas bolas criadas por `mkPair` que usam `q.c` + `q.tw` e se juntam até a idade 100), `LOOK` (um único personagem padrão, chave `sol` mantida por compatibilidade; a escolha de personagem foi removida), `ITEMS`/`ITEM` (50 skins: `s` = espaço, `k` = desenho, `r` = raridade, `g` ouro ou `gm` gemas), `SLOTS`, `RAR`, `cleanEq`, `drawSkin` (desenha cada skin dentro do `drawChar`), `PU` (power-ups, `u` = usos, `rc` = rodadas para recarregar), `DIFF`/`DN` (dificuldade dos bots), variáveis globais, `CFG` (configurações) e `rngf` (gerador aleatório com semente) |
+| `constantes` | `W,H` (mundo 1600×900), `TW,TH` (máscara 800×450, 2 px por célula), `UW,UH` (interface 1280×720), `WATER`, `VMAX`, `WK` (vento), `TURN=20`, `FUEL`. Também `CL` (**armas**; a chave continua se chamando `cls` no código e na rede; `st` = barras do menu; `rad` = área de dano, `cr` = tamanho da cratera quando é diferente; `bal` = Bola Quicante; `pair` = Morteiro, duas bolas criadas por `mkPair` que usam `q.c` + `q.tw` e `mortOff` (`MORT.T` = 150, `MORT.A` = 70); para power-ups conta como um projétil: só a bola `tw = 1` chama a chuva, e a Bomba pesada dá metade do bônus a cada bola), `LOOK` (um único personagem padrão, chave `sol` mantida por compatibilidade; a escolha de personagem foi removida), `ITEMS`/`ITEM` (50 skins: `s` = espaço, `k` = desenho, `r` = raridade, `g` ouro ou `gm` gemas), `SLOTS`, `RAR`, `cleanEq`, `drawSkin` (desenha cada skin dentro do `drawChar`), `PU` (power-ups, `u` = cargas — todos com 1 —, `rc` = rodadas para recarregar; a chuva usa `frag` com 70 de dano que não é dobrado pelo Dano x2: `q.x2`), `DIFF`/`DN` (dificuldade dos bots), variáveis globais, `CFG` (configurações) e `rngf` (gerador aleatório com semente) |
 | `áudio (sintetizado)` | objeto `AU`: efeitos e duas músicas feitas com WebAudio, sem arquivos de som |
 | `biomas, horários e clima` | `BIO` (11 biomas; campos próprios: `liq`, `gm`, `wk`, `drag`, `fog`, `cur`, `fixT`, `fall`), `TOD` (4 horários) e `TODX` (ambientes fixos da Lua e do mar), `EV` (eventos: `wm` vento, `gm` gravidade, `up` corrente para cima, `meteor`, `bolt`), `tint`/`tcol` |
-| `criação da partida` | `newGame(seed,players,opt)`, `paint` (material), `makeTerrain` (formato por `B.shape`; prédios em `G.bld`, cogumelos), `makeBg`, `makeDecor`/`drawDecor`/`decorHit`, `evStep`/`evApply` (clima), `meteorHit`/`flushMet` (meteoros), `strike` (raio) |
-| `turnos` | `startTurn`, `recharge`, `useItem`, `hurt`, `checkOver`, `showOver`, `endTurn` |
+| `criação da partida` | `spawnXs(N, r)` (posições sorteadas pela semente: chão firme, 110 px entre todos, 180 px até o inimigo mais perto, 1v1 entre 380 e 1300 px, no 2v2 o aliado não pode ficar muito mais longe que os dois inimigos), `newGame(seed,players,opt)` (também sorteia `G.t`, quem começa, e vira cada um para o inimigo mais perto), `paint` (material), `makeTerrain` (formato por `B.shape`; prédios em `G.bld`, cogumelos), `makeBg`, `makeDecor`/`drawDecor`/`decorHit`, `evStep`/`evApply` (clima), `meteorHit`/`flushMet` (meteoros), `strike` (raio) |
+| `turnos` | `startTurn`, `recharge`, `useItem`, `hurt`, `checkOver`, `showOver` (+ `podium(w)`: canvases `PODF` desenhados por `drawPod` no laço `PV`), `endTurn` |
 | `tiros, power-ups, física e explosões` | `mkProj`, `fire` (power-ups), `phys` (gravidade, vento, corrente `G.up`, arrasto do mar), `hit` (5 = quica: cogumelo ou 1º toque da Bola Quicante), `bounce`, `boom`, `teleport`, `carve` (cratera; material duro), `explode`, `fx`, `splash`, `die` |
-| `IA com mira balística` | `simShot` (simula o tiro com a mesma `phys`), `planAI` (busca grossa e depois fina; erro conforme `p.df`), `aiStep`, `botSay` |
+| `IA com mira balística` | `simShot` (simula o tiro com a mesma `phys`), `planAI` (busca grossa e depois fina; erro conforme `p.df`; com Avião disponível e `inHole(p)` ou melhor tiro ruim (`b.d > 140`) usa `planTp`, que simula o voo e escolhe um pouso firme, alto e a ~550 px do inimigo), `aiStep`, `botSay` |
 | `entrada` | teclado, botões de toque, chat (`sendChat`, `chat`, `bubble`/`drawBubble`), `openCfg` (painel ⚙) |
 | `loop de lógica` | `pumpQ` (fila de turnos online), `update()` a 60 Hz fixos |
 | `render` | `drawChar(g,arma,x,y,f,ang,cor,t,burn,look)`, `drawP`, `lpOff`/`drawProj` (giro de 360° só visual), `sky` (ambiente animado por bioma), `water` (água, lava, abismo, nuvens, vazio), `column`, `wxUpdate` (clima, ambiente, meteoros), `weather` (chuva, raios, meteoros), `fogLayer` (névoa do cemitério), `vignette`, `panel`, `dial`, `bottom`, `hud`, `draw`. Também `step`/`loop`: `requestAnimationFrame` com `setInterval` de reserva, para o tempo correr com a aba em segundo plano |
@@ -65,7 +65,7 @@ Vagas e times: vagas 0 e 2 são o Time Azul (`team 0`), vagas 1 e 3 são o Time 
 | Tipo | Quem envia | Conteúdo |
 |---|---|---|
 | `hi` | quem entra | `name`, `cls` (arma), `look` |
-| `cls`, `look`, `slot`, `ready` | membro | arma / personagem / vaga / pronto (o líder aplica em `hostApply`) |
+| `cls`, `look`, `slot`, `ready` | membro | arma / personagem / vaga / pronto (o líder aplica em `hostApply`). `slot` com `s: -1` = ir para a plateia (`mem.spec = true`; `fillSlots` e o `hi` não colocam espectador em vaga) |
 | `lobby` | líder | objeto `L` completo |
 | `go` | líder | `seed`, `players[{cid,name,cls,look,bot,df}]`, `map`, `tod` |
 | `st`, `fire`, `item`, `turn` | jogador da vez (ou o líder, no caso de bots) | sempre com `pi` e `tn`; `fire` tem `x,y,vy,ar`; `turn` tem `hp,bn,x,f` |
@@ -79,14 +79,15 @@ Vagas e times: vagas 0 e 2 são o Time Azul (`team 0`), vagas 1 e 3 são o Time 
 | `join`, `left` | entrada ou saída de alguém, com `from` |
 | `host` | novo líder: `{host, old}`, **sem `from`**. O cliente só aceita se não houver `from` |
 | `exists`, `nf`, `badpw`, `full` | erros ao criar ou entrar numa sala |
+| `kicked` | você foi expulso (ou tentou voltar antes de 10 min); a conexão é fechada em seguida |
 
-Mensagens que o servidor intercepta e **não** repassa: `meta` (nome, líder, formato, vagas e "em partida", usados na lista de salas) e `pw` (troca de senha). Só são aceitas do líder atual. A senha fica só no servidor.
+Mensagens que o servidor intercepta e **não** repassa: `kick {cid}` (só do líder: fecha a conexão do alvo e guarda `r.ban` por cid e uid durante 10 min; o `uid` vem na URL do WebSocket), `meta` (nome, líder, formato, vagas e "em partida", usados na lista de salas) e `pw` (troca de senha). Só são aceitas do líder atual. A senha fica só no servidor.
 
 ### Objeto da sala
 
 ```
 L = {code, mode, name, dn, lock, off, fmt, map, tod, host,
-     mem: {cid: {name, cls, look, st, bot, ready, df}},
+     mem: {cid: {name, cls, look, eq, uid, pid, st, bot, ready, df, spec}},
      slots: [cid | null] × 4, nb}
 ```
 
@@ -97,7 +98,7 @@ L = {code, mode, name, dn, lock, off, fmt, map, tod, host,
 
 - `GET /rooms`: lista de salas em JSON.
 - `GET` em qualquer outro caminho: entrega o `index.html`.
-- WebSocket `/ws?room=CÓDIGO&cid=ID&create=1&pw=SENHA`.
+- WebSocket `/ws?room=CÓDIGO&cid=ID&uid=CONTA&create=1&pw=SENHA`.
 - Até 8 conexões por sala. Quando a última pessoa sai, a sala é apagada. Se o líder sai, o próximo da lista (o mais antigo) vira líder.
 - Porta: `process.env.PORT` (padrão 8080).
 

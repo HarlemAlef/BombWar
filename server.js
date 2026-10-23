@@ -169,7 +169,7 @@ wss.on('connection', (ws, req) => {
   if (u.searchParams.get('presence') === '1') return presence(ws);
   const room = str(u.searchParams.get('room'), 12).toUpperCase().replace(/[^A-Z0-9]/g, '') || 'X';
   const cid = str(u.searchParams.get('cid') || Math.random().toString(36).slice(2), 24);
-  const create = u.searchParams.get('create') === '1', pw = str(u.searchParams.get('pw'), 20);
+  const create = u.searchParams.get('create') === '1', pw = str(u.searchParams.get('pw'), 20), uid = str(u.searchParams.get('uid'), 40).replace(/[^\w-]/g, '');
   const bye = t => { ws.send(JSON.stringify({ t })); ws.close(); };
 
   let r = rooms.get(room);
@@ -182,11 +182,12 @@ wss.on('connection', (ws, req) => {
     if (!r || !r.cl.length) return bye('nf');
     if (r.pw && pw !== r.pw) return bye('badpw');
   }
+  if (r.ban) { const now = Date.now(); for (const [k, t] of r.ban) if (t < now) r.ban.delete(k); if ((uid && r.ban.has(uid)) || r.ban.has(cid)) return bye('kicked'); }
   if (r.cl.length >= MAX || r.cl.some(c => c.cid === cid)) return bye('full');
 
   const isHost = r.cl.length === 0;
   if (isHost) r.host = cid;
-  const me = { ws, cid };
+  const me = { ws, cid, uid };
   r.cl.push(me);
   const cast = (o, all) => { const s = JSON.stringify(o); r.cl.forEach(c => (all || c !== me) && open(c) && c.ws.send(s)); };
 
@@ -196,6 +197,13 @@ wss.on('connection', (ws, req) => {
   ws.on('message', d => {
     let o; try { o = JSON.parse(d); } catch (e) { return; }
     if (!o || typeof o !== 'object' || Array.isArray(o)) return;
+    if (o.t === 'kick') { // expulsar: só o líder; fecha a conexão do jogador e bloqueia a volta por 10 minutos
+      if (cid !== r.host) return;
+      const tg = r.cl.find(c => c.cid === str(o.cid, 24) && c !== me); if (!tg) return;
+      r.ban = r.ban || new Map(); const until = Date.now() + 10 * 60e3; r.ban.set(tg.cid, until); if (tg.uid) r.ban.set(tg.uid, until);
+      try { tg.ws.send(JSON.stringify({ t: 'kicked' })); tg.ws.close(); } catch (e) {}
+      return;
+    }
     if (o.t === 'meta' || o.t === 'pw') { // informações da sala: só o líder atual pode mudar
       if (cid !== r.host) return;
       if (o.t === 'pw') r.pw = str(o.pw, 20);
