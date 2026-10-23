@@ -79,7 +79,7 @@ Todo mundo joga com o **mesmo personagem padrão** (camiseta azul, short preto e
 | Canhão Pesado | 215 | 66 | tiro forte e confiável, área de dano grande e cratera pequena |
 | Rifle de Precisão | 263 | 40 | muito dano, tiro rápido e trajetória plana |
 | Cajado Arcano | 170 + queima 40 por 2 turnos | 44 | queima o alvo |
-| Morteiro | 118 por bola | 54 | duas bolas que se cruzam na saída, se abrem bastante (até 140 px) e só se juntam depois de uns 2,5 s de voo. Só tiros bem altos acertam as duas |
+| Morteiro | 125 por bola | 66 | duas bolas que se cruzam na saída, se abrem bastante (até 140 px) e só se juntam depois de uns 2,5 s de voo. Só tiros bem altos acertam as duas |
 | Bola Quicante | 230 | 58 | quica uma vez no chão (mais forte quanto mais alto vier) e explode no segundo toque; acerto direto explode na hora |
 
 Valores ajustados depois do teste de 1.000 partidas entre bots (relatório de balanceamento de 22/10/2026).
