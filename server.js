@@ -197,10 +197,10 @@ wss.on('connection', (ws, req) => {
   ws.on('message', d => {
     let o; try { o = JSON.parse(d); } catch (e) { return; }
     if (!o || typeof o !== 'object' || Array.isArray(o)) return;
-    if (o.t === 'kick') { // expulsar: só o líder; fecha a conexão do jogador e bloqueia a volta por 10 minutos
+    if (o.t === 'kick') { // expulsar: só o líder; fecha a conexão do jogador e bloqueia a volta por 1 minuto
       if (cid !== r.host) return;
       const tg = r.cl.find(c => c.cid === str(o.cid, 24) && c !== me); if (!tg) return;
-      r.ban = r.ban || new Map(); const until = Date.now() + 10 * 60e3; r.ban.set(tg.cid, until); if (tg.uid) r.ban.set(tg.uid, until);
+      r.ban = r.ban || new Map(); const until = Date.now() + 1 * 60e3; r.ban.set(tg.cid, until); if (tg.uid) r.ban.set(tg.uid, until);
       try { tg.ws.send(JSON.stringify({ t: 'kicked' })); tg.ws.close(); } catch (e) {}
       return;
     }
